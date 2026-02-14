@@ -1,0 +1,247 @@
+{
+  "s3": {
+    "iam_prefix": "s3",
+    "read_only": "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+  },
+  "ec2": {
+    "iam_prefix": "ec2",
+    "read_only": "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+  },
+  "lambda": {
+    "iam_prefix": "lambda",
+    "read_only": "arn:aws:iam::aws:policy/AWSLambda_ReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AWSLambda_FullAccess"
+  },
+  "dynamodb": {
+    "iam_prefix": "dynamodb",
+    "read_only": "arn:aws:iam::aws:policy/AmazonDynamoDBReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
+  },
+  "sqs": {
+    "iam_prefix": "sqs",
+    "read_only": "arn:aws:iam::aws:policy/AmazonSQSReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonSQSFullAccess"
+  },
+  "sns": {
+    "iam_prefix": "sns",
+    "read_only": "arn:aws:iam::aws:policy/AmazonSNSReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
+  },
+  "cloudwatch": {
+    "iam_prefix": "cloudwatch",
+    "read_only": "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/CloudWatchFullAccess"
+  },
+  "cloudwatch-logs": {
+    "iam_prefix": "logs",
+    "read_only": "arn:aws:iam::aws:policy/CloudWatchLogsReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+  },
+  "cloudfront": {
+    "iam_prefix": "cloudfront",
+    "read_only": "arn:aws:iam::aws:policy/CloudFrontReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/CloudFrontFullAccess"
+  },
+  "route53": {
+    "iam_prefix": "route53",
+    "read_only": "arn:aws:iam::aws:policy/AmazonRoute53ReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonRoute53FullAccess"
+  },
+  "rds": {
+    "iam_prefix": "rds",
+    "read_only": "arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonRDSFullAccess"
+  },
+  "ecs": {
+    "iam_prefix": "ecs",
+    "read_only": "arn:aws:iam::aws:policy/AmazonECS_FullAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
+  },
+  "ecr": {
+    "iam_prefix": "ecr",
+    "read_only": "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
+    "full": "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
+  },
+  "eks": {
+    "iam_prefix": "eks",
+    "read_only": "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy",
+    "full": "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+  },
+  "iam": {
+    "iam_prefix": "iam",
+    "read_only": "arn:aws:iam::aws:policy/IAMReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/IAMFullAccess"
+  },
+  "kinesis": {
+    "iam_prefix": "kinesis",
+    "read_only": "arn:aws:iam::aws:policy/AmazonKinesisReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonKinesisFullAccess"
+  },
+  "secretsmanager": {
+    "iam_prefix": "secretsmanager",
+    "read_only": "arn:aws:iam::aws:policy/SecretsManagerReadWrite",
+    "full": "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
+  },
+  "ssm": {
+    "iam_prefix": "ssm",
+    "read_only": "arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonSSMFullAccess"
+  },
+  "stepfunctions": {
+    "iam_prefix": "states",
+    "read_only": "arn:aws:iam::aws:policy/AWSStepFunctionsReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess"
+  },
+  "apigateway": {
+    "iam_prefix": "apigateway",
+    "read_only": "arn:aws:iam::aws:policy/AmazonAPIGatewayAdministrator",
+    "full": "arn:aws:iam::aws:policy/AmazonAPIGatewayAdministrator"
+  },
+  "cloudformation": {
+    "iam_prefix": "cloudformation",
+    "read_only": "arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AWSCloudFormationFullAccess"
+  },
+  "elasticache": {
+    "iam_prefix": "elasticache",
+    "read_only": "arn:aws:iam::aws:policy/AmazonElastiCacheReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonElastiCacheFullAccess"
+  },
+  "elasticsearch": {
+    "iam_prefix": "es",
+    "read_only": "arn:aws:iam::aws:policy/AmazonOpenSearchServiceReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonOpenSearchServiceFullAccess"
+  },
+  "opensearch": {
+    "iam_prefix": "es",
+    "read_only": "arn:aws:iam::aws:policy/AmazonOpenSearchServiceReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonOpenSearchServiceFullAccess"
+  },
+  "ses": {
+    "iam_prefix": "ses",
+    "read_only": "arn:aws:iam::aws:policy/AmazonSESReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonSESFullAccess"
+  },
+  "codebuild": {
+    "iam_prefix": "codebuild",
+    "read_only": "arn:aws:iam::aws:policy/AWSCodeBuildReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AWSCodeBuildAdminAccess"
+  },
+  "codepipeline": {
+    "iam_prefix": "codepipeline",
+    "read_only": "arn:aws:iam::aws:policy/AWSCodePipeline_ReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AWSCodePipeline_FullAccess"
+  },
+  "codecommit": {
+    "iam_prefix": "codecommit",
+    "read_only": "arn:aws:iam::aws:policy/AWSCodeCommitReadOnly",
+    "full": "arn:aws:iam::aws:policy/AWSCodeCommitFullAccess"
+  },
+  "cognito": {
+    "iam_prefix": "cognito-idp",
+    "read_only": "arn:aws:iam::aws:policy/AmazonCognitoReadOnly",
+    "full": "arn:aws:iam::aws:policy/AmazonCognitoPowerUser"
+  },
+  "athena": {
+    "iam_prefix": "athena",
+    "read_only": "arn:aws:iam::aws:policy/AmazonAthenaFullAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonAthenaFullAccess"
+  },
+  "glue": {
+    "iam_prefix": "glue",
+    "read_only": "arn:aws:iam::aws:policy/AWSGlueConsoleFullAccess",
+    "full": "arn:aws:iam::aws:policy/AWSGlueConsoleFullAccess"
+  },
+  "redshift": {
+    "iam_prefix": "redshift",
+    "read_only": "arn:aws:iam::aws:policy/AmazonRedshiftReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonRedshiftFullAccess"
+  },
+  "eventbridge": {
+    "iam_prefix": "events",
+    "read_only": "arn:aws:iam::aws:policy/AmazonEventBridgeReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonEventBridgeFullAccess"
+  },
+  "sagemaker": {
+    "iam_prefix": "sagemaker",
+    "read_only": "arn:aws:iam::aws:policy/AmazonSageMakerReadOnly",
+    "full": "arn:aws:iam::aws:policy/AmazonSageMakerFullAccess"
+  },
+  "bedrock": {
+    "iam_prefix": "bedrock",
+    "read_only": "arn:aws:iam::aws:policy/AmazonBedrockReadOnly",
+    "full": "arn:aws:iam::aws:policy/AmazonBedrockFullAccess"
+  },
+  "kms": {
+    "iam_prefix": "kms",
+    "read_only": "arn:aws:iam::aws:policy/AWSKeyManagementServicePowerUser",
+    "full": "arn:aws:iam::aws:policy/AWSKeyManagementServicePowerUser"
+  },
+  "acm": {
+    "iam_prefix": "acm",
+    "read_only": "arn:aws:iam::aws:policy/AWSCertificateManagerReadOnly",
+    "full": "arn:aws:iam::aws:policy/AWSCertificateManagerFullAccess"
+  },
+  "elb": {
+    "iam_prefix": "elasticloadbalancing",
+    "read_only": "arn:aws:iam::aws:policy/ElasticLoadBalancingReadOnly",
+    "full": "arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess"
+  },
+  "autoscaling": {
+    "iam_prefix": "autoscaling",
+    "read_only": "arn:aws:iam::aws:policy/AutoScalingReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AutoScalingFullAccess"
+  },
+  "emr": {
+    "iam_prefix": "elasticmapreduce",
+    "read_only": "arn:aws:iam::aws:policy/AmazonElasticMapReduceReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonElasticMapReduceFullAccess"
+  },
+  "waf": {
+    "iam_prefix": "wafv2",
+    "read_only": "arn:aws:iam::aws:policy/AWSWAFReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AWSWAFFullAccess"
+  },
+  "guardduty": {
+    "iam_prefix": "guardduty",
+    "read_only": "arn:aws:iam::aws:policy/AmazonGuardDutyReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonGuardDutyFullAccess"
+  },
+  "config": {
+    "iam_prefix": "config",
+    "read_only": "arn:aws:iam::aws:policy/AWS_ConfigRole",
+    "full": "arn:aws:iam::aws:policy/AWS_ConfigRole"
+  },
+  "cloudtrail": {
+    "iam_prefix": "cloudtrail",
+    "read_only": "arn:aws:iam::aws:policy/AWSCloudTrail_ReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AWSCloudTrail_FullAccess"
+  },
+  "textract": {
+    "iam_prefix": "textract",
+    "read_only": "arn:aws:iam::aws:policy/AmazonTextractFullAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonTextractFullAccess"
+  },
+  "rekognition": {
+    "iam_prefix": "rekognition",
+    "read_only": "arn:aws:iam::aws:policy/AmazonRekognitionReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonRekognitionFullAccess"
+  },
+  "polly": {
+    "iam_prefix": "polly",
+    "read_only": "arn:aws:iam::aws:policy/AmazonPollyReadOnlyAccess",
+    "full": "arn:aws:iam::aws:policy/AmazonPollyFullAccess"
+  },
+  "translate": {
+    "iam_prefix": "translate",
+    "read_only": "arn:aws:iam::aws:policy/TranslateReadOnly",
+    "full": "arn:aws:iam::aws:policy/TranslateFullAccess"
+  },
+  "comprehend": {
+    "iam_prefix": "comprehend",
+    "read_only": "arn:aws:iam::aws:policy/ComprehendReadOnly",
+    "full": "arn:aws:iam::aws:policy/ComprehendFullAccess"
+  }
+}
