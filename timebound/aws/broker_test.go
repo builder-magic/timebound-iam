@@ -3,6 +3,8 @@ package timebound
 import (
 	"context"
 	"fmt"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -189,6 +191,283 @@ func TestGrantAccessSTSError(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestBrokerPoolCaching(t *testing.T) {
+	callCount := 0
+	factory := func(ctx context.Context, profile string) (*Broker, error) {
+		callCount++
+		mock := defaultMock()
+		return NewBrokerWithClient(ctx, mock)
+	}
+
+	pool := newBrokerPoolWithFactory(factory)
+	ctx := context.Background()
+
+	input := GrantAccessInput{
+		Services: []string{"s3"},
+		Level:    LevelReadOnly,
+		TTL:      30 * time.Minute,
+		Profile:  "dev",
+	}
+
+	// First call creates the broker
+	if _, err := pool.GrantAccess(ctx, input); err != nil {
+		t.Fatalf("first call: %v", err)
+	}
+	if callCount != 1 {
+		t.Fatalf("factory called %d times, want 1", callCount)
+	}
+
+	// Second call reuses the cached broker
+	if _, err := pool.GrantAccess(ctx, input); err != nil {
+		t.Fatalf("second call: %v", err)
+	}
+	if callCount != 1 {
+		t.Fatalf("factory called %d times after second call, want 1", callCount)
+	}
+}
+
+func TestBrokerPoolMultiProfile(t *testing.T) {
+	profiles := make(map[string]int)
+	factory := func(ctx context.Context, profile string) (*Broker, error) {
+		profiles[profile]++
+		mock := defaultMock()
+		return NewBrokerWithClient(ctx, mock)
+	}
+
+	pool := newBrokerPoolWithFactory(factory)
+	ctx := context.Background()
+
+	for _, profile := range []string{"dev", "prod", "dev"} {
+		input := GrantAccessInput{
+			Services: []string{"s3"},
+			Level:    LevelReadOnly,
+			TTL:      30 * time.Minute,
+			Profile:  profile,
+		}
+		if _, err := pool.GrantAccess(ctx, input); err != nil {
+			t.Fatalf("profile %q: %v", profile, err)
+		}
+	}
+
+	if profiles["dev"] != 1 {
+		t.Errorf("dev factory calls = %d, want 1", profiles["dev"])
+	}
+	if profiles["prod"] != 1 {
+		t.Errorf("prod factory calls = %d, want 1", profiles["prod"])
+	}
+}
+
+func TestBrokerPoolInitError(t *testing.T) {
+	callCount := 0
+	factory := func(ctx context.Context, profile string) (*Broker, error) {
+		callCount++
+		return nil, fmt.Errorf("credential error")
+	}
+
+	pool := newBrokerPoolWithFactory(factory)
+	ctx := context.Background()
+	input := GrantAccessInput{
+		Services: []string{"s3"},
+		Level:    LevelReadOnly,
+		TTL:      30 * time.Minute,
+		Profile:  "broken",
+	}
+
+	// First call fails
+	if _, err := pool.GrantAccess(ctx, input); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if callCount != 1 {
+		t.Fatalf("factory called %d times, want 1", callCount)
+	}
+
+	// Second call retries — failed init should not be cached
+	if _, err := pool.GrantAccess(ctx, input); err == nil {
+		t.Fatal("expected error on retry, got nil")
+	}
+	if callCount != 2 {
+		t.Fatalf("factory called %d times after retry, want 2", callCount)
+	}
+}
+
+func TestBrokerPoolDefaultProfile(t *testing.T) {
+	factory := func(ctx context.Context, profile string) (*Broker, error) {
+		if profile != "" {
+			t.Errorf("expected empty profile, got %q", profile)
+		}
+		mock := defaultMock()
+		return NewBrokerWithClient(ctx, mock)
+	}
+
+	pool := newBrokerPoolWithFactory(factory)
+	ctx := context.Background()
+	input := GrantAccessInput{
+		Services: []string{"s3"},
+		Level:    LevelReadOnly,
+		TTL:      30 * time.Minute,
+	}
+
+	if _, err := pool.GrantAccess(ctx, input); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// Concurrency tests: run with -race to detect data races.
+
+func TestBrokerPoolConcurrentSameProfile(t *testing.T) {
+	var factoryCalls atomic.Int32
+	factory := func(ctx context.Context, profile string) (*Broker, error) {
+		factoryCalls.Add(1)
+		mock := defaultMock()
+		return NewBrokerWithClient(ctx, mock)
+	}
+
+	pool := newBrokerPoolWithFactory(factory)
+	ctx := context.Background()
+
+	const goroutines = 20
+	brokers := make([]*Broker, goroutines)
+	errs := make([]error, goroutines)
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for i := range goroutines {
+		go func(idx int) {
+			defer wg.Done()
+			b, err := pool.getOrCreate(ctx, "shared")
+			brokers[idx] = b
+			errs[idx] = err
+		}(i)
+	}
+	wg.Wait()
+
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("goroutine %d: unexpected error: %v", i, err)
+		}
+	}
+
+	// All goroutines must receive the same broker instance.
+	for i := 1; i < goroutines; i++ {
+		if brokers[i] != brokers[0] {
+			t.Fatalf("goroutine %d got a different broker instance", i)
+		}
+	}
+
+	if n := factoryCalls.Load(); n != 1 {
+		t.Errorf("factory called %d times, want 1", n)
+	}
+}
+
+func TestBrokerPoolDifferentProfilesNotBlocked(t *testing.T) {
+	// Factory that blocks until released via a per-profile gate channel.
+	// This lets us prove that profile B completes while profile A is
+	// still blocked in its factory call.
+	gates := map[string]chan struct{}{
+		"a": make(chan struct{}),
+		"b": make(chan struct{}),
+	}
+
+	factory := func(ctx context.Context, profile string) (*Broker, error) {
+		gate, ok := gates[profile]
+		if !ok {
+			return nil, fmt.Errorf("unexpected profile %q", profile)
+		}
+		<-gate
+		mock := defaultMock()
+		return NewBrokerWithClient(ctx, mock)
+	}
+
+	pool := newBrokerPoolWithFactory(factory)
+	ctx := context.Background()
+
+	// Start profile A. It will block inside the factory.
+	aReady := make(chan struct{})
+	aDone := make(chan struct{})
+	go func() {
+		close(aReady)
+		pool.getOrCreate(ctx, "a")
+		close(aDone)
+	}()
+	<-aReady
+	// Give the goroutine time to enter the factory and block on the gate.
+	time.Sleep(10 * time.Millisecond)
+
+	// Release profile B's gate and request it. With per-profile locking
+	// this should complete immediately even though A is still blocked.
+	close(gates["b"])
+	bDone := make(chan struct{})
+	go func() {
+		pool.getOrCreate(ctx, "b")
+		close(bDone)
+	}()
+
+	select {
+	case <-bDone:
+		// Profile B completed while A is still blocked. This is the
+		// correct behavior with per-profile locking.
+	case <-time.After(2 * time.Second):
+		t.Fatal("profile B blocked by profile A's pending creation")
+	}
+
+	// Verify A is still blocked (its gate hasn't been released).
+	select {
+	case <-aDone:
+		t.Fatal("profile A completed before its gate was released")
+	default:
+	}
+
+	// Release A and wait for it to finish.
+	close(gates["a"])
+	select {
+	case <-aDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("profile A did not complete after gate was released")
+	}
+}
+
+func TestBrokerPoolConcurrentFactoryErrorRetryable(t *testing.T) {
+	var factoryCalls atomic.Int32
+	factory := func(ctx context.Context, profile string) (*Broker, error) {
+		n := factoryCalls.Add(1)
+		if n == 1 {
+			return nil, fmt.Errorf("transient network error")
+		}
+		mock := defaultMock()
+		return NewBrokerWithClient(ctx, mock)
+	}
+
+	pool := newBrokerPoolWithFactory(factory)
+	ctx := context.Background()
+
+	// First call fails.
+	_, err := pool.getOrCreate(ctx, "flaky")
+	if err == nil {
+		t.Fatal("expected error on first call")
+	}
+
+	// Second call retries and succeeds. A cached error would break this.
+	broker, err := pool.getOrCreate(ctx, "flaky")
+	if err != nil {
+		t.Fatalf("expected success on retry, got: %v", err)
+	}
+	if broker == nil {
+		t.Fatal("expected non-nil broker on retry")
+	}
+
+	// Third call returns the cached broker, no additional factory call.
+	broker2, err := pool.getOrCreate(ctx, "flaky")
+	if err != nil {
+		t.Fatalf("third call: %v", err)
+	}
+	if broker2 != broker {
+		t.Fatal("third call returned a different broker instance")
+	}
+	if n := factoryCalls.Load(); n != 2 {
+		t.Errorf("factory called %d times, want 2 (one failure + one success)", n)
 	}
 }
 

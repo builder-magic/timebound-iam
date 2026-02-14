@@ -10,6 +10,7 @@ type Session struct {
 	ID              string    `json:"id"`
 	Services        []string  `json:"services"`
 	Level           string    `json:"level"`
+	Profile         string    `json:"profile,omitempty"`
 	AccessKeyID     string    `json:"access_key_id"`
 	SecretAccessKey  string   `json:"secret_access_key"`
 	SessionToken    string    `json:"session_token"`

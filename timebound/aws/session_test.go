@@ -1,6 +1,7 @@
 package timebound
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 )
@@ -33,6 +34,67 @@ func TestSessionIsExpired(t *testing.T) {
 			s := &Session{ExpiresAt: tt.expiresAt}
 			if got := s.IsExpired(); got != tt.want {
 				t.Errorf("IsExpired() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSessionProfileSerialization(t *testing.T) {
+	tests := []struct {
+		name        string
+		profile     string
+		wantInJSON  bool
+	}{
+		{
+			name:       "with profile",
+			profile:    "prod",
+			wantInJSON: true,
+		},
+		{
+			name:       "empty profile omitted",
+			profile:    "",
+			wantInJSON: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Session{
+				ID:        "test-1",
+				Services:  []string{"s3"},
+				Level:     LevelReadOnly,
+				Profile:   tt.profile,
+				ExpiresAt: time.Now().Add(1 * time.Hour),
+			}
+
+			data, err := json.Marshal(s)
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+
+			var m map[string]any
+			if err := json.Unmarshal(data, &m); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+
+			_, exists := m["profile"]
+			if exists != tt.wantInJSON {
+				t.Errorf("profile in JSON = %v, want %v (json: %s)", exists, tt.wantInJSON, string(data))
+			}
+
+			if tt.wantInJSON {
+				if m["profile"] != tt.profile {
+					t.Errorf("profile = %v, want %q", m["profile"], tt.profile)
+				}
+			}
+
+			// Round-trip: unmarshal back to Session
+			var roundTrip Session
+			if err := json.Unmarshal(data, &roundTrip); err != nil {
+				t.Fatalf("round-trip unmarshal: %v", err)
+			}
+			if roundTrip.Profile != tt.profile {
+				t.Errorf("round-trip profile = %q, want %q", roundTrip.Profile, tt.profile)
 			}
 		})
 	}

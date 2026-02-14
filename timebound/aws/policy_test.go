@@ -37,6 +37,24 @@ func TestGetPolicyARN(t *testing.T) {
 			wantARN: "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess",
 		},
 		{
+			name:    "uppercase service name",
+			service: "S3",
+			level:   LevelReadOnly,
+			wantARN: "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess",
+		},
+		{
+			name:    "mixed case service name",
+			service: "DynamoDB",
+			level:   LevelFull,
+			wantARN: "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess",
+		},
+		{
+			name:    "leading and trailing spaces",
+			service: "  lambda  ",
+			level:   LevelReadOnly,
+			wantARN: "arn:aws:iam::aws:policy/AWSLambda_ReadOnlyAccess",
+		},
+		{
 			name:      "unknown service",
 			service:   "nonexistent",
 			level:     LevelReadOnly,
@@ -94,6 +112,12 @@ func TestGetPolicyARNs(t *testing.T) {
 			services:  []string{"s3", "nonexistent"},
 			level:     LevelReadOnly,
 			wantError: true,
+		},
+		{
+			name:      "mixed case deduplicated",
+			services:  []string{"s3", "S3", " s3 "},
+			level:     LevelReadOnly,
+			wantCount: 1,
 		},
 	}
 
@@ -158,8 +182,13 @@ func TestValidateServices(t *testing.T) {
 			wantError: true,
 		},
 		{
-			name:     "empty list",
-			services: []string{},
+			name:      "empty list",
+			services:  []string{},
+			wantError: true,
+		},
+		{
+			name:     "uppercase names normalized",
+			services: []string{"S3", "EC2", " Lambda "},
 		},
 	}
 

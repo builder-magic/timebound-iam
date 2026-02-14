@@ -71,7 +71,7 @@ func TestHandleGrantAccess(t *testing.T) {
 			broker := newTestBroker(t, mock)
 			store := NewSessionStore()
 
-			result, _, err := handleGrantAccess(context.Background(), broker, store, tt.args)
+			result, _, err := handleGrantAccess(context.Background(), broker, store, t.TempDir(), tt.args)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -117,7 +117,7 @@ func TestHandleGrantAccessResponse(t *testing.T) {
 	broker := newTestBroker(t, mock)
 	store := NewSessionStore()
 
-	result, _, err := handleGrantAccess(context.Background(), broker, store, grantAccessArgs{
+	result, _, err := handleGrantAccess(context.Background(), broker, store, t.TempDir(), grantAccessArgs{
 		Services: []string{"s3"},
 		Level:    LevelReadOnly,
 		TTL:      "30m",
@@ -179,8 +179,101 @@ func TestHandleGrantAccessResponse(t *testing.T) {
 		t.Errorf("file permissions = %o, want 0600", info.Mode().Perm())
 	}
 
-	// Clean up
-	os.Remove(credFile)
+}
+
+func TestHandleGrantAccessWithProfile(t *testing.T) {
+	expiration := time.Now().Add(30 * time.Minute)
+	mock := &mockSTSClient{
+		getCallerIdentityFn: func(ctx context.Context, params *sts.GetCallerIdentityInput, optFns ...func(*sts.Options)) (*sts.GetCallerIdentityOutput, error) {
+			return &sts.GetCallerIdentityOutput{
+				Account: aws.String("123456789012"),
+			}, nil
+		},
+		assumeRoleFn: func(ctx context.Context, params *sts.AssumeRoleInput, optFns ...func(*sts.Options)) (*sts.AssumeRoleOutput, error) {
+			return &sts.AssumeRoleOutput{
+				Credentials: &ststypes.Credentials{
+					AccessKeyId:     aws.String("AKIATEST"),
+					SecretAccessKey: aws.String("SECRET"),
+					SessionToken:    aws.String("TOKEN"),
+					Expiration:      aws.Time(expiration),
+				},
+			}, nil
+		},
+	}
+
+	broker := newTestBroker(t, mock)
+	store := NewSessionStore()
+
+	result, _, err := handleGrantAccess(context.Background(), broker, store, t.TempDir(), grantAccessArgs{
+		Services: []string{"s3"},
+		Level:    LevelReadOnly,
+		TTL:      "30m",
+		Profile:  "prod",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %v", result.Content)
+	}
+
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
+
+	var response map[string]any
+	if err := json.Unmarshal([]byte(textContent.Text), &response); err != nil {
+		t.Fatalf("failed to parse response JSON: %v", err)
+	}
+
+	if response["profile"] != "prod" {
+		t.Errorf("profile = %v, want %q", response["profile"], "prod")
+	}
+
+	// Verify session in store has profile
+	active := store.ListActive()
+	if len(active) != 1 {
+		t.Fatalf("expected 1 active session, got %d", len(active))
+	}
+	if active[0].Profile != "prod" {
+		t.Errorf("session profile = %q, want %q", active[0].Profile, "prod")
+	}
+
+}
+
+func TestHandleGrantAccessWithoutProfile(t *testing.T) {
+	mock := defaultMock()
+	broker := newTestBroker(t, mock)
+	store := NewSessionStore()
+
+	result, _, err := handleGrantAccess(context.Background(), broker, store, t.TempDir(), grantAccessArgs{
+		Services: []string{"s3"},
+		Level:    LevelReadOnly,
+		TTL:      "30m",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %v", result.Content)
+	}
+
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
+
+	var response map[string]any
+	if err := json.Unmarshal([]byte(textContent.Text), &response); err != nil {
+		t.Fatalf("failed to parse response JSON: %v", err)
+	}
+
+	// Profile should be absent from response when empty
+	if _, exists := response["profile"]; exists {
+		t.Errorf("profile should not be in response when empty, got %v", response["profile"])
+	}
+
 }
 
 func TestHandleListServices(t *testing.T) {

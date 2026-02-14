@@ -11,10 +11,11 @@ import (
 )
 
 // RunSetup runs the interactive setup wizard that generates IAM policy JSON.
-func RunSetup() error {
+// An empty profile uses the default credential chain.
+func RunSetup(profile string) error {
 	ctx := context.Background()
 
-	broker, err := NewBroker(ctx)
+	broker, err := NewBrokerWithProfile(ctx, profile)
 	if err != nil {
 		return fmt.Errorf("initializing broker: %w", err)
 	}

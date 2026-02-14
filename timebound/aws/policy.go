@@ -39,7 +39,9 @@ func init() {
 }
 
 // GetPolicyARN returns the managed policy ARN for a given service and access level.
+// Service names are normalized to lowercase with whitespace trimmed.
 func GetPolicyARN(service, level string) (string, error) {
+	service = strings.ToLower(strings.TrimSpace(service))
 	svc, ok := policyRegistry[service]
 	if !ok {
 		return "", fmt.Errorf("unknown service: %s", service)
@@ -62,9 +64,17 @@ func GetPolicyARN(service, level string) (string, error) {
 }
 
 // GetPolicyARNs returns managed policy ARNs for multiple services at a given access level.
+// Duplicate service names are silently deduplicated to avoid sending duplicate
+// PolicyArns to STS AssumeRole.
 func GetPolicyARNs(services []string, level string) ([]string, error) {
+	seen := make(map[string]bool, len(services))
 	arns := make([]string, 0, len(services))
 	for _, svc := range services {
+		svc = strings.ToLower(strings.TrimSpace(svc))
+		if seen[svc] {
+			continue
+		}
+		seen[svc] = true
 		arn, err := GetPolicyARN(svc, level)
 		if err != nil {
 			return nil, err
@@ -94,7 +104,9 @@ func ListServices() []ServiceInfo {
 }
 
 // GetIAMPrefix returns the IAM action prefix for a given service name.
+// Service names are normalized to lowercase with whitespace trimmed.
 func GetIAMPrefix(service string) (string, error) {
+	service = strings.ToLower(strings.TrimSpace(service))
 	svc, ok := policyRegistry[service]
 	if !ok {
 		return "", fmt.Errorf("unknown service: %s", service)
@@ -104,8 +116,15 @@ func GetIAMPrefix(service string) (string, error) {
 
 // ValidateServices checks that all provided service names exist in the registry.
 func ValidateServices(services []string) error {
+	// An empty services list must be rejected. STS AssumeRole called without
+	// PolicyArns grants the full, unscoped permissions of the broker role.
+	if len(services) == 0 {
+		return fmt.Errorf("at least one service is required")
+	}
+
 	var unknown []string
 	for _, svc := range services {
+		svc = strings.ToLower(strings.TrimSpace(svc))
 		if _, ok := policyRegistry[svc]; !ok {
 			unknown = append(unknown, svc)
 		}

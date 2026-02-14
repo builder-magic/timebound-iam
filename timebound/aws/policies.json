@@ -56,18 +56,12 @@
   },
   "ecs": {
     "iam_prefix": "ecs",
-    "read_only": "arn:aws:iam::aws:policy/AmazonECS_FullAccess",
     "full": "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
   },
   "ecr": {
     "iam_prefix": "ecr",
     "read_only": "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
     "full": "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
-  },
-  "eks": {
-    "iam_prefix": "eks",
-    "read_only": "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy",
-    "full": "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
   },
   "iam": {
     "iam_prefix": "iam",
@@ -81,7 +75,7 @@
   },
   "secretsmanager": {
     "iam_prefix": "secretsmanager",
-    "read_only": "arn:aws:iam::aws:policy/SecretsManagerReadWrite",
+    "read_only": "arn:aws:iam::aws:policy/AWSSecretsManagerClientReadOnlyAccess",
     "full": "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
   },
   "ssm": {
@@ -96,7 +90,6 @@
   },
   "apigateway": {
     "iam_prefix": "apigateway",
-    "read_only": "arn:aws:iam::aws:policy/AmazonAPIGatewayAdministrator",
     "full": "arn:aws:iam::aws:policy/AmazonAPIGatewayAdministrator"
   },
   "cloudformation": {
@@ -146,12 +139,10 @@
   },
   "athena": {
     "iam_prefix": "athena",
-    "read_only": "arn:aws:iam::aws:policy/AmazonAthenaFullAccess",
     "full": "arn:aws:iam::aws:policy/AmazonAthenaFullAccess"
   },
   "glue": {
     "iam_prefix": "glue",
-    "read_only": "arn:aws:iam::aws:policy/AWSGlueConsoleFullAccess",
     "full": "arn:aws:iam::aws:policy/AWSGlueConsoleFullAccess"
   },
   "redshift": {
@@ -176,7 +167,6 @@
   },
   "kms": {
     "iam_prefix": "kms",
-    "read_only": "arn:aws:iam::aws:policy/AWSKeyManagementServicePowerUser",
     "full": "arn:aws:iam::aws:policy/AWSKeyManagementServicePowerUser"
   },
   "acm": {
@@ -211,7 +201,7 @@
   },
   "config": {
     "iam_prefix": "config",
-    "read_only": "arn:aws:iam::aws:policy/AWS_ConfigRole",
+    "read_only": "arn:aws:iam::aws:policy/AWSConfigUserAccess",
     "full": "arn:aws:iam::aws:policy/AWS_ConfigRole"
   },
   "cloudtrail": {
@@ -221,7 +211,6 @@
   },
   "textract": {
     "iam_prefix": "textract",
-    "read_only": "arn:aws:iam::aws:policy/AmazonTextractFullAccess",
     "full": "arn:aws:iam::aws:policy/AmazonTextractFullAccess"
   },
   "rekognition": {

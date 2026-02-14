@@ -12,8 +12,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-const credentialDir = "/tmp/timebound-iam"
-
 const (
 	toolGrantAccess        = "grant_access"
 	toolListServices       = "list_services"
@@ -25,6 +23,7 @@ type grantAccessArgs struct {
 	Services []string `json:"services" jsonschema:"AWS service names (e.g. s3 dynamodb lambda)"`
 	Level    string   `json:"level" jsonschema:"Access level: read_only or full"`
 	TTL      string   `json:"ttl" jsonschema:"Duration string (e.g. 15m 1h 4h)"`
+	Profile  string   `json:"profile,omitempty" jsonschema:"Optional AWS profile name (e.g. prod dev). Omit for default credentials."`
 }
 
 // listServicesArgs holds the (empty) arguments for list_services.
@@ -34,12 +33,16 @@ type listServicesArgs struct{}
 type listActiveSessionsArgs struct{}
 
 // RegisterTools registers all MCP tool handlers on the server.
-func RegisterTools(server *mcp.Server, broker CredentialGranter, store *SessionStore) {
+// credentialDir is the directory where credential .env files are written.
+// The caller is responsible for creating this directory securely (e.g. via
+// os.MkdirTemp) so that the path is unpredictable and not susceptible to
+// symlink attacks.
+func RegisterTools(server *mcp.Server, broker CredentialGranter, store *SessionStore, credentialDir string) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        toolGrantAccess,
-		Description: "Issue time-boxed, service-scoped temporary AWS credentials. The user will be prompted to approve before credentials are issued.",
+		Description: "Issue time-boxed, service-scoped temporary AWS credentials. Optionally specify a profile to target a specific AWS account. The user will be prompted to approve before credentials are issued.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args grantAccessArgs) (*mcp.CallToolResult, any, error) {
-		return handleGrantAccess(ctx, broker, store, args)
+		return handleGrantAccess(ctx, broker, store, credentialDir, args)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -57,7 +60,7 @@ func RegisterTools(server *mcp.Server, broker CredentialGranter, store *SessionS
 	})
 }
 
-func handleGrantAccess(ctx context.Context, broker CredentialGranter, store *SessionStore, args grantAccessArgs) (*mcp.CallToolResult, any, error) {
+func handleGrantAccess(ctx context.Context, broker CredentialGranter, store *SessionStore, credentialDir string, args grantAccessArgs) (*mcp.CallToolResult, any, error) {
 	if len(args.Services) == 0 {
 		return errorResult("at least one service is required"), nil, nil
 	}
@@ -75,6 +78,7 @@ func handleGrantAccess(ctx context.Context, broker CredentialGranter, store *Ses
 		Services: args.Services,
 		Level:    args.Level,
 		TTL:      ttl,
+		Profile:  args.Profile,
 	})
 	if err != nil {
 		return errorResult(fmt.Sprintf("failed to grant access: %v", err)), nil, nil
@@ -82,7 +86,7 @@ func handleGrantAccess(ctx context.Context, broker CredentialGranter, store *Ses
 
 	// Write credentials to a temp file so they don't appear in tool output or command lines.
 	// Write before adding to store so we don't have a session with no credential file.
-	envFile, err := writeCredentialFile(session)
+	envFile, err := writeCredentialFile(credentialDir, session)
 	if err != nil {
 		return errorResult(fmt.Sprintf("failed to write credential file: %v", err)), nil, nil
 	}
@@ -90,7 +94,7 @@ func handleGrantAccess(ctx context.Context, broker CredentialGranter, store *Ses
 	store.Add(session)
 
 	// Clean up credential files for expired sessions
-	cleanupExpiredCredentialFiles(store)
+	cleanupExpiredCredentialFiles(credentialDir, store)
 
 	response := map[string]any{
 		"session_id":      session.ID,
@@ -99,6 +103,10 @@ func handleGrantAccess(ctx context.Context, broker CredentialGranter, store *Ses
 		"expires_at":      session.ExpiresAt.Format(time.RFC3339),
 		"credential_file": envFile,
 		"usage":           fmt.Sprintf("Prefix AWS CLI commands with: env $(cat %s)", envFile),
+	}
+
+	if session.Profile != "" {
+		response["profile"] = session.Profile
 	}
 
 	return jsonResult(response)
@@ -116,6 +124,7 @@ func handleListActiveSessions(store *SessionStore) (*mcp.CallToolResult, any, er
 		ID           string   `json:"id"`
 		Services     []string `json:"services"`
 		Level        string   `json:"level"`
+		Profile      string   `json:"profile,omitempty"`
 		ExpiresAt    string   `json:"expires_at"`
 		TTLRemaining string   `json:"ttl_remaining"`
 	}
@@ -127,6 +136,7 @@ func handleListActiveSessions(store *SessionStore) (*mcp.CallToolResult, any, er
 			ID:           s.ID,
 			Services:     s.Services,
 			Level:        s.Level,
+			Profile:      s.Profile,
 			ExpiresAt:    s.ExpiresAt.Format(time.RFC3339),
 			TTLRemaining: remaining.String(),
 		}
@@ -135,9 +145,27 @@ func handleListActiveSessions(store *SessionStore) (*mcp.CallToolResult, any, er
 	return jsonResult(summaries)
 }
 
+// StartCleanupLoop runs a background goroutine that periodically purges
+// expired sessions and removes their credential files. It stops when
+// ctx is cancelled.
+func StartCleanupLoop(ctx context.Context, store *SessionStore, credentialDir string, interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				cleanupExpiredCredentialFiles(credentialDir, store)
+			}
+		}
+	}()
+}
+
 // cleanupExpiredCredentialFiles removes credential files for expired sessions
 // and purges them from the store.
-func cleanupExpiredCredentialFiles(store *SessionStore) {
+func cleanupExpiredCredentialFiles(credentialDir string, store *SessionStore) {
 	expired := store.PurgeExpired()
 	for _, session := range expired {
 		path := filepath.Join(credentialDir, session.ID+".env")
@@ -145,12 +173,9 @@ func cleanupExpiredCredentialFiles(store *SessionStore) {
 	}
 }
 
-// writeCredentialFile writes session credentials to a temp file and returns the path.
-func writeCredentialFile(session *Session) (string, error) {
-	if err := os.MkdirAll(credentialDir, 0700); err != nil {
-		return "", fmt.Errorf("creating credential dir: %w", err)
-	}
-
+// writeCredentialFile writes session credentials to a file in credentialDir
+// and returns the path. The directory must already exist.
+func writeCredentialFile(credentialDir string, session *Session) (string, error) {
 	envFile := filepath.Join(credentialDir, session.ID+".env")
 	content := strings.Join([]string{
 		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", session.AccessKeyID),
