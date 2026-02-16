@@ -4,7 +4,7 @@ default: build
 # Build the binary
 build:
     @mkdir -p bin
-    @go build -o bin/timebound-iam ./cmd/timebound-iam
+    @go build -o bin/timebound-iam .
 
 # Run all tests
 test:

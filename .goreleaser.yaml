@@ -1,7 +1,7 @@
 version: 2
 
 builds:
-  - main: ./cmd/timebound-iam
+  - main: .
     binary: timebound-iam
     env:
       - CGO_ENABLED=0

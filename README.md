@@ -13,7 +13,7 @@ brew install builder-magic/tap/timebound-iam
 ### Go install
 
 ```bash
-go install github.com/builder-magic/timebound-iam/cmd/timebound-iam@latest
+go install github.com/builder-magic/timebound-iam@latest
 ```
 
 ### Binary download
