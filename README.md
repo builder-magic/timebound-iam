@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.png" alt="timebound-iam" width="56">
+  <img src=".github/logo.png" alt="timebound-iam" width="56">
 </p>
 <h3 align="center">Timebound<br>AWS IAM Permissions<br>for Claude Code</h3>
 <p align="center"><sub>(or any AI agent)</sub></p>
@@ -20,7 +20,7 @@
 Timebound-IAM is an MCP Server that issues short-lived, service-scoped AWS credentials via STS AssumeRole so that AI coding agents (like Claude Code) can access AWS resources without long-lived keys. Credentials are time-bounded (15 minutes to 12 hours), scoped to specific services and access levels (read-only or full), and automatically cleaned up on expiry.
 
 <p align="center">
-  <img src="claude-screenshot.png" alt="Claude Code using timebound-iam" width="700">
+  <img src=".github/claude-screenshot.png" alt="Claude Code using timebound-iam" width="700">
 </p>
 
 ## Install
@@ -55,15 +55,21 @@ For the complete installation and setup guide, see [https://timebound-iam.com/in
 
    Register the MCP server so Claude Code can request temporary credentials on demand:
    ```bash
-   claude mcp add timebound-iam -- timebound-iam serve
+   claude mcp add --scope user timebound-iam -- timebound-iam serve
    ```
    Restart Claude Code to pick up the new server.
 
 3. **Verify**
 
+   Verify that the MCP server is installed and running with the `/mcp` command:
+
+   <p align="center">
+     <img src=".github/claude-mcp.png" alt="Claude Code /mcp command showing timebound-iam connected" width="800">
+   </p>
+
    Test the credential flow end-to-end:
    ```bash
-   bin/timebound-iam test
+   timebound-iam test
    ```
    This requests short-lived S3 read-only credentials and writes them to a temporary `.env` file you can use to verify access.
 
