@@ -111,8 +111,8 @@ func runTest() error {
 	fmt.Println("Credentials received:")
 	fmt.Printf("  Session ID:        %s\n", session.ID)
 	fmt.Printf("  Access Key ID:     %s\n", session.AccessKeyID)
-	fmt.Printf("  Secret Access Key: %s\n", redact(session.SecretAccessKey, 4, 4))
-	fmt.Printf("  Session Token:     %s\n", redact(session.SessionToken, 20, 0))
+	fmt.Printf("  Secret Access Key: %s\n", timebound.Redact(session.SecretAccessKey, 4, 4))
+	fmt.Printf("  Session Token:     %s\n", timebound.Redact(session.SessionToken, 20, 0))
 	fmt.Printf("  Expires At:        %s\n\n", session.ExpiresAt.Format(time.RFC3339))
 
 	// Write credentials to a file instead of printing them to the terminal.
@@ -133,19 +133,3 @@ func runTest() error {
 	return nil
 }
 
-// redact returns a partially masked version of s, showing only the first
-// prefixLen and last suffixLen characters. If s is too short to redact
-// meaningfully, it is fully masked to avoid leaking the entire value.
-// AWS credential values are ASCII so byte indexing is safe.
-func redact(s string, prefixLen, suffixLen int) string {
-	if len(s) == 0 {
-		return ""
-	}
-	if prefixLen+suffixLen == 0 || len(s) <= prefixLen+suffixLen {
-		return strings.Repeat("*", len(s))
-	}
-	if suffixLen == 0 {
-		return s[:prefixLen] + "..."
-	}
-	return s[:prefixLen] + "..." + s[len(s)-suffixLen:]
-}

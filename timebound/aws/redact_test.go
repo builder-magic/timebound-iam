@@ -1,4 +1,4 @@
-package main
+package timebound
 
 import (
 	"strings"
@@ -205,9 +205,9 @@ func TestRedact(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := redact(tt.input, tt.prefixLen, tt.suffixLen)
+			got := Redact(tt.input, tt.prefixLen, tt.suffixLen)
 			if got != tt.want {
-				t.Errorf("redact(%q, %d, %d) = %q, want %q",
+				t.Errorf("Redact(%q, %d, %d) = %q, want %q",
 					tt.input, tt.prefixLen, tt.suffixLen, got, tt.want)
 			}
 		})
@@ -215,8 +215,6 @@ func TestRedact(t *testing.T) {
 }
 
 func TestRedactNeverLeaksFullValue(t *testing.T) {
-	// For any non-empty input, the output must never equal the input.
-	// This ensures redact always masks something.
 	inputs := []string{
 		"a",
 		"ab",
@@ -241,9 +239,9 @@ func TestRedactNeverLeaksFullValue(t *testing.T) {
 
 	for _, input := range inputs {
 		for _, cfg := range configs {
-			got := redact(input, cfg.prefix, cfg.suffix)
+			got := Redact(input, cfg.prefix, cfg.suffix)
 			if got == input {
-				t.Errorf("redact(%q, %d, %d) = %q, leaked full value",
+				t.Errorf("Redact(%q, %d, %d) = %q, leaked full value",
 					input, cfg.prefix, cfg.suffix, got)
 			}
 		}
@@ -251,18 +249,14 @@ func TestRedactNeverLeaksFullValue(t *testing.T) {
 }
 
 func TestRedactOutputNeverContainsFullSecret(t *testing.T) {
-	// The redacted output must never contain the full original string
-	// as a substring (trivially true if they differ, but belt and suspenders).
 	secret := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-	got := redact(secret, 4, 4)
+	got := Redact(secret, 4, 4)
 	if strings.Contains(got, secret) {
 		t.Errorf("redacted output contains the full secret")
 	}
 }
 
 func TestRedactMaskedPortionLength(t *testing.T) {
-	// For strings that are fully masked, verify the mask length equals
-	// the input length (so the caller can still gauge the value's size).
 	tests := []struct {
 		input     string
 		prefixLen int
@@ -275,14 +269,14 @@ func TestRedactMaskedPortionLength(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := redact(tt.input, tt.prefixLen, tt.suffixLen)
+		got := Redact(tt.input, tt.prefixLen, tt.suffixLen)
 		if len(got) != len(tt.input) {
-			t.Errorf("redact(%q, %d, %d) = %q (len %d), want mask of len %d",
+			t.Errorf("Redact(%q, %d, %d) = %q (len %d), want mask of len %d",
 				tt.input, tt.prefixLen, tt.suffixLen, got, len(got), len(tt.input))
 		}
 		for _, c := range got {
 			if c != '*' {
-				t.Errorf("redact(%q, %d, %d) = %q, expected all asterisks",
+				t.Errorf("Redact(%q, %d, %d) = %q, expected all asterisks",
 					tt.input, tt.prefixLen, tt.suffixLen, got)
 				break
 			}
@@ -291,7 +285,6 @@ func TestRedactMaskedPortionLength(t *testing.T) {
 }
 
 func TestRedactEmptyStringAlwaysEmpty(t *testing.T) {
-	// Empty input must always produce empty output regardless of parameters.
 	configs := []struct {
 		prefix int
 		suffix int
@@ -304,9 +297,9 @@ func TestRedactEmptyStringAlwaysEmpty(t *testing.T) {
 	}
 
 	for _, cfg := range configs {
-		got := redact("", cfg.prefix, cfg.suffix)
+		got := Redact("", cfg.prefix, cfg.suffix)
 		if got != "" {
-			t.Errorf("redact(\"\", %d, %d) = %q, want empty",
+			t.Errorf("Redact(\"\", %d, %d) = %q, want empty",
 				cfg.prefix, cfg.suffix, got)
 		}
 	}
