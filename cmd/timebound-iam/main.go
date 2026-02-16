@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/deepmesa/timebound-iam/timebound/aws"
+	"github.com/builder-magic/timebound-iam/timebound/aws"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

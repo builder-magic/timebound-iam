@@ -1,4 +1,4 @@
-module github.com/deepmesa/timebound-iam
+module github.com/builder-magic/timebound-iam
 
 go 1.25.5
 
