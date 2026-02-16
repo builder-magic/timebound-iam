@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="logo.png" alt="timebound-iam" width="80">
+  <img src="logo.png" alt="timebound-iam" width="56">
 </p>
-
-<h1 align="center">Timebound<br>AWS IAM Permissions<br>for Claude Code<br><sub><sub>(any AI agent)</sub></sub></h1>
+<h3 align="center">Timebound<br>AWS IAM Permissions<br>for Claude Code</h3>
+<p align="center"><sub>(or any AI agent)</sub></p>
 
 <p align="center">
   <b>An MCP server that sits between your AI agent and AWS STS, issuing temporary credentials scoped to specific AWS services and access levels on demand.</b>
@@ -17,9 +17,11 @@
   <a href="https://timebound-iam.com">https://timebound-iam.com</a>
 </p>
 
----
-
 Timebound-IAM is an MCP Server that issues short-lived, service-scoped AWS credentials via STS AssumeRole so that AI coding agents (like Claude Code) can access AWS resources without long-lived keys. Credentials are time-bounded (15 minutes to 12 hours), scoped to specific services and access levels (read-only or full), and automatically cleaned up on expiry.
+
+<p align="center">
+  <img src="claude-screenshot.png" alt="Claude Code using timebound-iam" width="700">
+</p>
 
 ## Install
 
