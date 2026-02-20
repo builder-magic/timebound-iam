@@ -15,8 +15,10 @@ import (
 
 const (
 	brokerRoleName = "timebound-iam-broker"
-	minTTL         = 15 * time.Minute
-	maxTTL         = 12 * time.Hour
+	// MinTTL is the minimum allowed credential duration.
+	MinTTL = 15 * time.Minute
+	// MaxTTL is the maximum allowed credential duration.
+	MaxTTL = 12 * time.Hour
 	// STS AssumeRole allows at most 12 managed policy ARNs per call.
 	maxPolicyARNs = 12
 )
@@ -78,6 +80,13 @@ func NewBrokerWithClient(ctx context.Context, client STSClient) (*Broker, error)
 	}, nil
 }
 
+// ServiceScope pairs a service name with an access level, allowing
+// per-service granularity (e.g. s3:read_only + dynamodb:full).
+type ServiceScope struct {
+	Service string
+	Level   string
+}
+
 // GrantAccessInput holds the parameters for granting temporary access.
 type GrantAccessInput struct {
 	Services []string
@@ -88,23 +97,32 @@ type GrantAccessInput struct {
 	// itself does not use it for routing; it only stores it in the
 	// Session for informational purposes.
 	Profile string
+	// ServiceScopes allows per-service access levels. When non-empty, it
+	// takes precedence over the Services+Level fields.
+	ServiceScopes []ServiceScope
 }
 
 // GrantAccess assumes the broker role with session policy ARNs scoped to the
 // requested services and returns a Session with temporary credentials.
 func (b *Broker) GrantAccess(ctx context.Context, input GrantAccessInput) (*Session, error) {
-	if err := ValidateServices(input.Services); err != nil {
-		return nil, err
+	if input.TTL < MinTTL {
+		return nil, fmt.Errorf("TTL must be at least %s", MinTTL)
+	}
+	if input.TTL > MaxTTL {
+		return nil, fmt.Errorf("TTL must not exceed %s", MaxTTL)
 	}
 
-	if input.TTL < minTTL {
-		return nil, fmt.Errorf("TTL must be at least %s", minTTL)
-	}
-	if input.TTL > maxTTL {
-		return nil, fmt.Errorf("TTL must not exceed %s", maxTTL)
-	}
+	var arns []string
+	var err error
 
-	arns, err := GetPolicyARNs(input.Services, input.Level)
+	if len(input.ServiceScopes) > 0 {
+		arns, err = resolveScopedARNs(input.ServiceScopes)
+	} else {
+		if err := ValidateServices(input.Services); err != nil {
+			return nil, err
+		}
+		arns, err = GetPolicyARNs(input.Services, input.Level)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("resolving policy ARNs: %w", err)
 	}
@@ -151,6 +169,33 @@ func (b *Broker) GrantAccess(ctx context.Context, input GrantAccessInput) (*Sess
 		SessionToken:    aws.ToString(creds.SessionToken),
 		ExpiresAt:       aws.ToTime(creds.Expiration),
 	}, nil
+}
+
+// resolveScopedARNs resolves policy ARNs from per-service scopes,
+// validating services and deduplicating ARNs.
+func resolveScopedARNs(scopes []ServiceScope) ([]string, error) {
+	services := make([]string, len(scopes))
+	for i, s := range scopes {
+		services[i] = s.Service
+	}
+	if err := ValidateServices(services); err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]bool, len(scopes))
+	arns := make([]string, 0, len(scopes))
+	for _, s := range scopes {
+		arn, err := GetPolicyARN(s.Service, s.Level)
+		if err != nil {
+			return nil, err
+		}
+		if seen[arn] {
+			continue
+		}
+		seen[arn] = true
+		arns = append(arns, arn)
+	}
+	return arns, nil
 }
 
 // AccountID returns the AWS account ID discovered during initialization.

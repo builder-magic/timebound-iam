@@ -3,6 +3,7 @@ package timebound
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -468,6 +469,101 @@ func TestBrokerPoolConcurrentFactoryErrorRetryable(t *testing.T) {
 	}
 	if n := factoryCalls.Load(); n != 2 {
 		t.Errorf("factory called %d times, want 2 (one failure + one success)", n)
+	}
+}
+
+func TestGrantAccessWithServiceScopes(t *testing.T) {
+	tests := []struct {
+		name          string
+		scopes        []ServiceScope
+		wantARNCount  int
+		wantError     bool
+		wantErrorMsg  string
+	}{
+		{
+			name: "mixed levels",
+			scopes: []ServiceScope{
+				{Service: "s3", Level: LevelReadOnly},
+				{Service: "dynamodb", Level: LevelFull},
+			},
+			wantARNCount: 2,
+		},
+		{
+			name: "deduplication same service same level",
+			scopes: []ServiceScope{
+				{Service: "s3", Level: LevelReadOnly},
+				{Service: "s3", Level: LevelReadOnly},
+			},
+			wantARNCount: 1,
+		},
+		{
+			name: "same service different levels produces two ARNs",
+			scopes: []ServiceScope{
+				{Service: "s3", Level: LevelReadOnly},
+				{Service: "s3", Level: LevelFull},
+			},
+			wantARNCount: 2,
+		},
+		{
+			name: "unknown service with scopes",
+			scopes: []ServiceScope{
+				{Service: "nonexistent", Level: LevelReadOnly},
+			},
+			wantError:    true,
+			wantErrorMsg: "unknown service",
+		},
+		{
+			name: "invalid level with scopes",
+			scopes: []ServiceScope{
+				{Service: "s3", Level: "admin"},
+			},
+			wantError:    true,
+			wantErrorMsg: "invalid access level",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := defaultMock()
+			var capturedInput *sts.AssumeRoleInput
+			mock.assumeRoleFn = func(ctx context.Context, params *sts.AssumeRoleInput, optFns ...func(*sts.Options)) (*sts.AssumeRoleOutput, error) {
+				capturedInput = params
+				expiration := time.Now().Add(30 * time.Minute)
+				return &sts.AssumeRoleOutput{
+					Credentials: &ststypes.Credentials{
+						AccessKeyId:     aws.String("AKIAIOSFODNN7EXAMPLE"),
+						SecretAccessKey: aws.String("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"),
+						SessionToken:    aws.String("FwoGZXIvYXdzEBYaDH..."),
+						Expiration:      aws.Time(expiration),
+					},
+				}, nil
+			}
+
+			broker := newTestBroker(t, mock)
+			_, err := broker.GrantAccess(context.Background(), GrantAccessInput{
+				ServiceScopes: tt.scopes,
+				TTL:           30 * time.Minute,
+			})
+
+			if tt.wantError {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if tt.wantErrorMsg != "" && !strings.Contains(err.Error(), tt.wantErrorMsg) {
+					t.Errorf("error %q does not contain %q", err.Error(), tt.wantErrorMsg)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if capturedInput == nil {
+				t.Fatal("AssumeRole was not called")
+			}
+			if len(capturedInput.PolicyArns) != tt.wantARNCount {
+				t.Errorf("expected %d policy ARNs, got %d", tt.wantARNCount, len(capturedInput.PolicyArns))
+			}
+		})
 	}
 }
 
