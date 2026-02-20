@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/builder-magic/timebound-iam/cmd/cli"
 	"github.com/builder-magic/timebound-iam/timebound/aws"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -23,21 +24,44 @@ const (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: timebound-iam <command>")
-		fmt.Fprintln(os.Stderr, "commands: serve, setup, test")
+		printUsage()
 		os.Exit(1)
 	}
 
 	switch os.Args[1] {
+	case "help", "--help", "-h":
+		printUsage()
+		os.Exit(0)
 	case "serve":
+		if hasHelpFlag(os.Args[2:]) {
+			fmt.Fprintln(os.Stderr, "Start the MCP server on stdin/stdout")
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, "USAGE")
+			fmt.Fprintln(os.Stderr, "  timebound-iam serve")
+			os.Exit(0)
+		}
 		if err := runServe(); err != nil {
 			log.Fatalf("serve: %v", err)
 		}
 	case "test":
+		if hasHelpFlag(os.Args[2:]) {
+			fmt.Fprintln(os.Stderr, "Request test credentials and print verification instructions")
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, "USAGE")
+			fmt.Fprintln(os.Stderr, "  timebound-iam test")
+			os.Exit(0)
+		}
 		if err := runTest(); err != nil {
 			log.Fatalf("test: %v", err)
 		}
 	case "setup":
+		if hasHelpFlag(os.Args[2:]) {
+			fmt.Fprintln(os.Stderr, "Generate IAM trust and inline policies for the broker role")
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, "USAGE")
+			fmt.Fprintln(os.Stderr, "  timebound-iam setup aws [--profile NAME]")
+			os.Exit(0)
+		}
 		if len(os.Args) < 3 || os.Args[2] != "aws" {
 			fmt.Fprintln(os.Stderr, "usage: timebound-iam setup aws [--profile NAME]")
 			os.Exit(1)
@@ -47,6 +71,14 @@ func main() {
 		setupFlags.Parse(os.Args[3:])
 		if err := timebound.RunSetup(*profile); err != nil {
 			log.Fatalf("setup: %v", err)
+		}
+	case "exec":
+		if err := cli.RunExec(os.Args[2:]); err != nil {
+			log.Fatalf("exec: %v", err)
+		}
+	case "env":
+		if err := cli.RunEnv(os.Args[2:]); err != nil {
+			log.Fatalf("env: %v", err)
 		}
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
@@ -85,6 +117,30 @@ func runServe() error {
 		return fmt.Errorf("server error: %w", err)
 	}
 	return nil
+}
+
+func printUsage() {
+	fmt.Fprintln(os.Stderr, "Issue scoped, temporary AWS credentials via STS AssumeRole")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "USAGE")
+	fmt.Fprintln(os.Stderr, "  timebound-iam <command> [flags]")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "COMMANDS")
+	fmt.Fprintln(os.Stderr, "  serve    Start the MCP server on stdin/stdout")
+	fmt.Fprintln(os.Stderr, "  setup    Generate IAM policies for the broker role")
+	fmt.Fprintln(os.Stderr, "  test     Request test credentials and verify the setup")
+	fmt.Fprintln(os.Stderr, "  exec     Run a command with temporary credentials")
+	fmt.Fprintln(os.Stderr, "  env      Print export/unset statements for shell use")
+}
+
+// hasHelpFlag reports whether args contains --help or -h.
+func hasHelpFlag(args []string) bool {
+	for _, a := range args {
+		if a == "--help" || a == "-h" {
+			return true
+		}
+	}
+	return false
 }
 
 func runTest() error {

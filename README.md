@@ -73,6 +73,35 @@ For the complete installation and setup guide, see [https://timebound-iam.com/in
    ```
    This requests short-lived S3 read-only credentials and writes them to a temporary `.env` file you can use to verify access.
 
+## CLI Usage
+
+Timebound-IAM can also be used as a standalone CLI to wrap shell scripts with scoped, temporary credentials.
+
+1. **`exec`**
+
+   Runs a command with temporary credentials injected into its environment:
+   ```bash
+   timebound-iam exec -s s3:full,cloudfront:full -t 30m --profile prod -- ./deploy.sh
+   ```
+   Use `--dry-run` to validate flags without requesting credentials. Use `--no-confirm` to skip the interactive prompt in CI or scripts.
+
+2. **`env`**
+
+   Prints `export` or `unset` statements for use with `eval`:
+   ```bash
+   eval "$(timebound-iam env -s s3:ro -t 15m --no-confirm)"
+   aws s3 ls
+   eval "$(timebound-iam env --unset)"
+   ```
+
+3. **Scopes**
+
+   Scopes use the format `service:level` where level is `ro` (read-only) or `full`. Multiple scopes can be comma-separated or passed as repeated `-s` flags:
+   ```bash
+   -s s3:ro,dynamodb:full
+   -s s3:ro -s dynamodb:full
+   ```
+
 ## Contributing
 
 Contributions in any form (suggestions, bug reports, pull requests, and feedback) are welcome. If you've found a bug, you can submit an issue or email me at rsingh@builder-magic.com.
