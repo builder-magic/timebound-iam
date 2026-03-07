@@ -20,6 +20,9 @@ import (
 const (
 	serverName    = "timebound-iam"
 	serverVersion = "0.5.0"
+
+	defaultDirName   = ".timebound-iam"
+	credentialSubdir = "credentials"
 )
 
 func main() {
@@ -90,18 +93,13 @@ func main() {
 }
 
 func runServe() error {
-	// Cancel the context on SIGINT or SIGTERM so that server.Run returns
-	// and deferred cleanup (credential directory removal) executes.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// Create a per-process credential directory with an unpredictable name.
-	// This prevents symlink attacks against a hardcoded path in /tmp.
-	credentialDir, err := os.MkdirTemp("", "timebound-iam-*")
+	credentialDir, err := resolveCredentialDir()
 	if err != nil {
-		return fmt.Errorf("creating credential directory: %w", err)
+		return fmt.Errorf("setting up credential directory: %w", err)
 	}
-	defer os.RemoveAll(credentialDir)
 
 	store := timebound.NewSessionStore()
 	brokerPool := timebound.NewBrokerPool()
@@ -114,7 +112,7 @@ func runServe() error {
 	timebound.RegisterTools(server, brokerPool, store, credentialDir)
 	timebound.StartCleanupLoop(ctx, store, credentialDir, 1*time.Minute)
 
-	log.Printf("starting %s %s MCP server (brokers initialized on first use)", serverName, serverVersion)
+	log.Printf("starting %s %s MCP server (credentials in %s)", serverName, serverVersion, credentialDir)
 
 	if err := server.Run(ctx, &mcp.StdioTransport{}); err != nil {
 		return fmt.Errorf("server error: %w", err)
@@ -148,6 +146,21 @@ func hasHelpFlag(args []string) bool {
 	return false
 }
 
+// resolveCredentialDir returns the credential directory path (~/.timebound-iam/credentials),
+// creating it if needed with 0700 permissions.
+func resolveCredentialDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("determining home directory: %w", err)
+	}
+	dir := filepath.Join(home, defaultDirName, credentialSubdir)
+
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return "", fmt.Errorf("creating directory %s: %w", dir, err)
+	}
+	return dir, nil
+}
+
 func runTest() error {
 	ctx := context.Background()
 
@@ -176,9 +189,12 @@ func runTest() error {
 	fmt.Printf("  Session Token:     %s\n", timebound.Redact(session.SessionToken, 20, 0))
 	fmt.Printf("  Expires At:        %s\n\n", session.ExpiresAt.Format(time.RFC3339))
 
-	// Write credentials to a file instead of printing them to the terminal.
-	// Terminal scrollback, shell history, and log capture are all attack vectors.
-	envFile := filepath.Join(os.TempDir(), fmt.Sprintf("timebound-iam-test-%s.env", session.ID))
+	credentialDir, err := resolveCredentialDir()
+	if err != nil {
+		return fmt.Errorf("setting up credential directory: %w", err)
+	}
+
+	envFile := filepath.Join(credentialDir, fmt.Sprintf("test-%s.env", session.ID))
 	content := strings.Join([]string{
 		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", session.AccessKeyID),
 		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", session.SecretAccessKey),
@@ -193,4 +209,3 @@ func runTest() error {
 
 	return nil
 }
-
