@@ -10,7 +10,7 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	ststypes "github.com/aws/aws-sdk-go-v2/service/sts/types"
-	"github.com/google/uuid"
+	nanoid "github.com/matoous/go-nanoid/v2"
 )
 
 const (
@@ -145,7 +145,11 @@ func (b *Broker) GrantAccess(ctx context.Context, input GrantAccessInput) (*Sess
 		return nil, fmt.Errorf("too many services: STS allows at most %d session policies per call, got %d", maxPolicyARNs, len(policyARNs))
 	}
 
-	sessionName := fmt.Sprintf("timebound-iam-%s", uuid.New().String())
+	id, err := nanoid.New(10)
+	if err != nil {
+		return nil, fmt.Errorf("generating session ID: %w", err)
+	}
+	sessionName := fmt.Sprintf("timebound-iam-%s", id)
 	durationSeconds := int32(input.TTL.Seconds())
 
 	result, err := b.stsClient.AssumeRole(ctx, &sts.AssumeRoleInput{
@@ -160,7 +164,7 @@ func (b *Broker) GrantAccess(ctx context.Context, input GrantAccessInput) (*Sess
 
 	creds := result.Credentials
 	return &Session{
-		ID:              sessionName,
+		ID:              id,
 		Services:        input.Services,
 		Level:           input.Level,
 		Profile:         input.Profile,

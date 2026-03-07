@@ -19,9 +19,9 @@ import (
 
 const (
 	serverName    = "timebound-iam"
-	serverVersion = "0.6.0"
+	serverVersion = "0.7.0"
 
-	defaultDirName   = ".timebound-iam"
+	defaultDirName   = ".tiam"
 	credentialSubdir = "credentials"
 )
 
@@ -146,7 +146,7 @@ func hasHelpFlag(args []string) bool {
 	return false
 }
 
-// resolveCredentialDir returns the credential directory path (~/.timebound-iam/credentials),
+// resolveCredentialDir returns the credential directory path (~/.tiam/credentials),
 // creating it if needed with 0700 permissions.
 func resolveCredentialDir() (string, error) {
 	home, err := os.UserHomeDir()
