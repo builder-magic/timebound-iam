@@ -232,5 +232,9 @@
     "iam_prefix": "comprehend",
     "read_only": "arn:aws:iam::aws:policy/ComprehendReadOnly",
     "full": "arn:aws:iam::aws:policy/ComprehendFullAccess"
+  },
+  "apprunner": {
+    "iam_prefix": "apprunner",
+    "full": "arn:aws:iam::aws:policy/AWSAppRunnerFullAccess"
   }
 }
