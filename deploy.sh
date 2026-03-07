@@ -11,7 +11,6 @@ fi
 # Strip leading 'v' if provided
 VERSION="${VERSION#v}"
 TAG="v${VERSION}"
-BRANCH="chore/bump-v${VERSION}"
 
 # Ensure we're on mainline and up to date
 git checkout mainline
@@ -30,33 +29,10 @@ fi
 just build
 just test
 
-# Commit and push
-git checkout -b "$BRANCH"
+# Commit and push directly to mainline
 git add main.go
 git commit -m "chore: bump version to ${VERSION}"
-git push -u origin "$BRANCH"
-
-# Create PR and wait for merge
-PR_URL=$(gh pr create --title "chore: bump version to ${VERSION}" --body "Bump version to ${VERSION} for release.")
-echo "PR created: ${PR_URL}"
-echo ""
-echo "Waiting for PR to be merged..."
-
-while true; do
-  STATE=$(gh pr view "$PR_URL" --json state --jq '.state')
-  if [[ "$STATE" == "MERGED" ]]; then
-    echo "PR merged."
-    break
-  elif [[ "$STATE" == "CLOSED" ]]; then
-    echo "ERROR: PR was closed without merging."
-    exit 1
-  fi
-  sleep 5
-done
-
-# Switch back to mainline and pull the merge commit
-git checkout mainline
-git pull origin mainline
+git push origin mainline
 
 # Create release (this pushes the tag, triggering goreleaser + homebrew)
 gh release create "$TAG" --title "$TAG" --generate-notes
