@@ -19,7 +19,7 @@ import (
 
 const (
 	serverName    = "timebound-iam"
-	serverVersion = "0.1.0"
+	serverVersion = "0.5.0"
 )
 
 func main() {
@@ -29,6 +29,9 @@ func main() {
 	}
 
 	switch os.Args[1] {
+	case "version", "--version", "-v":
+		fmt.Printf("%s %s\n", serverName, serverVersion)
+		os.Exit(0)
 	case "help", "--help", "-h":
 		printUsage()
 		os.Exit(0)
@@ -120,17 +123,19 @@ func runServe() error {
 }
 
 func printUsage() {
+	fmt.Fprintf(os.Stderr, "%s %s\n", serverName, serverVersion)
 	fmt.Fprintln(os.Stderr, "Issue scoped, temporary AWS credentials via STS AssumeRole")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "USAGE")
 	fmt.Fprintln(os.Stderr, "  timebound-iam <command> [flags]")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "COMMANDS")
-	fmt.Fprintln(os.Stderr, "  serve    Start the MCP server on stdin/stdout")
-	fmt.Fprintln(os.Stderr, "  setup    Generate IAM policies for the broker role")
-	fmt.Fprintln(os.Stderr, "  test     Request test credentials and verify the setup")
-	fmt.Fprintln(os.Stderr, "  exec     Run a command with temporary credentials")
-	fmt.Fprintln(os.Stderr, "  env      Print export/unset statements for shell use")
+	fmt.Fprintln(os.Stderr, "  serve      Start the MCP server on stdin/stdout")
+	fmt.Fprintln(os.Stderr, "  setup      Generate IAM policies for the broker role")
+	fmt.Fprintln(os.Stderr, "  test       Request test credentials and verify the setup")
+	fmt.Fprintln(os.Stderr, "  exec       Run a command with temporary credentials")
+	fmt.Fprintln(os.Stderr, "  env        Print export/unset statements for shell use")
+	fmt.Fprintln(os.Stderr, "  version    Print version information")
 }
 
 // hasHelpFlag reports whether args contains --help or -h.
