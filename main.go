@@ -22,7 +22,7 @@ const (
 	serverVersion = "0.7.0"
 
 	defaultDirName   = ".tiam"
-	credentialSubdir = "credentials"
+	credentialSubdir = "creds"
 )
 
 func main() {
@@ -146,7 +146,7 @@ func hasHelpFlag(args []string) bool {
 	return false
 }
 
-// resolveCredentialDir returns the credential directory path (~/.tiam/credentials),
+// resolveCredentialDir returns the credential directory path (~/.tiam/creds),
 // creating it if needed with 0700 permissions.
 func resolveCredentialDir() (string, error) {
 	home, err := os.UserHomeDir()
