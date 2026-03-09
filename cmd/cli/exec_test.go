@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestFilterAWSEnv(t *testing.T) {
+func TestFilterCredentialEnv(t *testing.T) {
 	environ := []string{
 		"HOME=/home/user",
 		"PATH=/usr/bin",
@@ -16,7 +16,7 @@ func TestFilterAWSEnv(t *testing.T) {
 		"TERM=xterm",
 	}
 
-	filtered := filterAWSEnv(environ)
+	filtered := filterCredentialEnv(environ)
 
 	// Should keep non-credential vars.
 	wantKept := []string{"HOME=/home/user", "PATH=/usr/bin", "AWS_REGION=us-east-1", "TERM=xterm"}
@@ -45,6 +45,25 @@ func TestFilterAWSEnv(t *testing.T) {
 
 	if len(filtered) != 4 {
 		t.Errorf("expected 4 env vars, got %d", len(filtered))
+	}
+}
+
+func TestFilterCredentialEnvAzure(t *testing.T) {
+	environ := []string{
+		"HOME=/home/user",
+		"AZURE_CLIENT_ID=old-client",
+		"AZURE_CLIENT_SECRET=old-secret",
+		"AZURE_TENANT_ID=old-tenant",
+		"AZURE_SUBSCRIPTION_ID=old-sub",
+	}
+
+	filtered := filterCredentialEnv(environ)
+
+	if len(filtered) != 1 {
+		t.Errorf("expected 1 env var, got %d: %v", len(filtered), filtered)
+	}
+	if filtered[0] != "HOME=/home/user" {
+		t.Errorf("expected HOME, got %q", filtered[0])
 	}
 }
 

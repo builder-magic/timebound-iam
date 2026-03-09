@@ -10,7 +10,8 @@ import (
 	"strings"
 	"time"
 
-	timebound "github.com/builder-magic/timebound-iam/timebound/aws"
+	awsprovider "github.com/builder-magic/timebound-iam/timebound/aws"
+	"github.com/builder-magic/timebound-iam/timebound/core"
 )
 
 // RunExec implements the "exec" subcommand. It acquires temporary credentials
@@ -18,7 +19,7 @@ import (
 func RunExec(args []string) error {
 	fs := flag.NewFlagSet("exec", flag.ContinueOnError)
 	fs.Usage = func() {
-		fmt.Fprintln(fs.Output(), "Run a command with temporary AWS credentials")
+		fmt.Fprintln(fs.Output(), "Run a command with temporary cloud credentials")
 		fmt.Fprintln(fs.Output(), "")
 		fmt.Fprintln(fs.Output(), "USAGE")
 		fmt.Fprintln(fs.Output(), "  timebound-iam exec [flags] -- <command> [args...]")
@@ -69,7 +70,7 @@ func RunExec(args []string) error {
 	}
 
 	ctx := context.Background()
-	broker, err := timebound.NewBrokerWithProfile(ctx, *profile)
+	broker, err := awsprovider.NewBrokerWithProfile(ctx, *profile)
 	if err != nil {
 		return fmt.Errorf("initializing broker: %w", err)
 	}
@@ -91,7 +92,7 @@ func RunExec(args []string) error {
 		return err
 	}
 
-	session, err := broker.GrantAccess(ctx, timebound.GrantAccessInput{
+	session, err := broker.GrantAccess(ctx, core.GrantAccessInput{
 		ServiceScopes: scopes.scopes,
 		TTL:           ttl,
 		Profile:       *profile,
@@ -103,15 +104,13 @@ func RunExec(args []string) error {
 	return execChild(ctx, childArgs, session)
 }
 
-// execChild runs the child command with AWS credentials injected into the
+// execChild runs the child command with cloud credentials injected into the
 // environment. Existing AWS credential env vars are filtered out first.
-func execChild(ctx context.Context, childArgs []string, session *timebound.Session) error {
-	env := filterAWSEnv(os.Environ())
-	env = append(env,
-		envKeyAccessKeyID+"="+session.AccessKeyID,
-		envKeySecretAccessKey+"="+session.SecretAccessKey,
-		envKeySessionToken+"="+session.SessionToken,
-	)
+func execChild(ctx context.Context, childArgs []string, session *core.Session) error {
+	env := filterCredentialEnv(os.Environ())
+	for k, v := range session.Credentials {
+		env = append(env, k+"="+v)
+	}
 
 	cmd := exec.CommandContext(ctx, childArgs[0], childArgs[1:]...)
 	cmd.Env = env
@@ -129,16 +128,27 @@ func execChild(ctx context.Context, childArgs []string, session *timebound.Sessi
 	return nil
 }
 
-// filterAWSEnv returns a copy of environ with AWS credential variables removed.
-func filterAWSEnv(environ []string) []string {
+// credentialEnvKeys lists all credential environment variables that should be
+// filtered out before injecting new credentials.
+var credentialEnvKeys = map[string]bool{
+	envKeyAccessKeyID:     true,
+	envKeySecretAccessKey: true,
+	envKeySessionToken:    true,
+	"AZURE_CLIENT_ID":     true,
+	"AZURE_CLIENT_SECRET": true,
+	"AZURE_TENANT_ID":     true,
+	"AZURE_SUBSCRIPTION_ID": true,
+}
+
+// filterCredentialEnv returns a copy of environ with cloud credential variables removed.
+func filterCredentialEnv(environ []string) []string {
 	filtered := make([]string, 0, len(environ))
 	for _, e := range environ {
 		key := e
 		if idx := strings.IndexByte(e, '='); idx >= 0 {
 			key = e[:idx]
 		}
-		switch key {
-		case envKeyAccessKeyID, envKeySecretAccessKey, envKeySessionToken:
+		if credentialEnvKeys[key] {
 			continue
 		}
 		filtered = append(filtered, e)

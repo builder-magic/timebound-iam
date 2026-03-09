@@ -1,11 +1,13 @@
-package timebound
+package aws
 
 import (
 	"testing"
+
+	"github.com/builder-magic/timebound-iam/timebound/core"
 )
 
 func TestSelectServices(t *testing.T) {
-	services := []ServiceInfo{
+	services := []core.ServiceInfo{
 		{Name: "s3"},
 		{Name: "ec2"},
 		{Name: "lambda"},

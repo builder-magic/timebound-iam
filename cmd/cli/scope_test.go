@@ -3,58 +3,58 @@ package cli
 import (
 	"testing"
 
-	timebound "github.com/builder-magic/timebound-iam/timebound/aws"
+	"github.com/builder-magic/timebound-iam/timebound/core"
 )
 
 func TestScopeFlagSet(t *testing.T) {
 	tests := []struct {
 		name    string
 		inputs  []string
-		want    []timebound.ServiceScope
+		want    []core.ServiceScope
 		wantErr bool
 	}{
 		{
 			name:   "single scope",
 			inputs: []string{"s3:ro"},
-			want: []timebound.ServiceScope{
-				{Service: "s3", Level: timebound.LevelReadOnly},
+			want: []core.ServiceScope{
+				{Service: "s3", Level: core.LevelReadOnly},
 			},
 		},
 		{
 			name:   "comma-separated scopes",
 			inputs: []string{"s3:ro,dynamodb:full"},
-			want: []timebound.ServiceScope{
-				{Service: "s3", Level: timebound.LevelReadOnly},
-				{Service: "dynamodb", Level: timebound.LevelFull},
+			want: []core.ServiceScope{
+				{Service: "s3", Level: core.LevelReadOnly},
+				{Service: "dynamodb", Level: core.LevelFull},
 			},
 		},
 		{
 			name:   "repeated flag calls",
 			inputs: []string{"s3:ro", "lambda:full"},
-			want: []timebound.ServiceScope{
-				{Service: "s3", Level: timebound.LevelReadOnly},
-				{Service: "lambda", Level: timebound.LevelFull},
+			want: []core.ServiceScope{
+				{Service: "s3", Level: core.LevelReadOnly},
+				{Service: "lambda", Level: core.LevelFull},
 			},
 		},
 		{
 			name:   "read_only alias",
 			inputs: []string{"s3:read_only"},
-			want: []timebound.ServiceScope{
-				{Service: "s3", Level: timebound.LevelReadOnly},
+			want: []core.ServiceScope{
+				{Service: "s3", Level: core.LevelReadOnly},
 			},
 		},
 		{
 			name:   "readonly alias",
 			inputs: []string{"s3:readonly"},
-			want: []timebound.ServiceScope{
-				{Service: "s3", Level: timebound.LevelReadOnly},
+			want: []core.ServiceScope{
+				{Service: "s3", Level: core.LevelReadOnly},
 			},
 		},
 		{
 			name:   "uppercase normalized",
 			inputs: []string{"S3:RO"},
-			want: []timebound.ServiceScope{
-				{Service: "s3", Level: timebound.LevelReadOnly},
+			want: []core.ServiceScope{
+				{Service: "s3", Level: core.LevelReadOnly},
 			},
 		},
 		{
@@ -80,9 +80,9 @@ func TestScopeFlagSet(t *testing.T) {
 		{
 			name:   "whitespace trimmed",
 			inputs: []string{" s3 : ro , dynamodb : full "},
-			want: []timebound.ServiceScope{
-				{Service: "s3", Level: timebound.LevelReadOnly},
-				{Service: "dynamodb", Level: timebound.LevelFull},
+			want: []core.ServiceScope{
+				{Service: "s3", Level: core.LevelReadOnly},
+				{Service: "dynamodb", Level: core.LevelFull},
 			},
 		},
 	}
@@ -125,9 +125,9 @@ func TestScopeFlagSet(t *testing.T) {
 
 func TestScopeFlagString(t *testing.T) {
 	f := &scopeFlag{
-		scopes: []timebound.ServiceScope{
-			{Service: "s3", Level: timebound.LevelReadOnly},
-			{Service: "dynamodb", Level: timebound.LevelFull},
+		scopes: []core.ServiceScope{
+			{Service: "s3", Level: core.LevelReadOnly},
+			{Service: "dynamodb", Level: core.LevelFull},
 		},
 	}
 	got := f.String()

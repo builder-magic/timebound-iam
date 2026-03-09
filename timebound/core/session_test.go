@@ -1,4 +1,4 @@
-package timebound
+package core
 
 import (
 	"encoding/json"
@@ -41,9 +41,9 @@ func TestSessionIsExpired(t *testing.T) {
 
 func TestSessionProfileSerialization(t *testing.T) {
 	tests := []struct {
-		name        string
-		profile     string
-		wantInJSON  bool
+		name       string
+		profile    string
+		wantInJSON bool
 	}{
 		{
 			name:       "with profile",
@@ -61,6 +61,7 @@ func TestSessionProfileSerialization(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Session{
 				ID:        "test-1",
+				Provider:  ProviderAWS,
 				Services:  []string{"s3"},
 				Level:     LevelReadOnly,
 				Profile:   tt.profile,

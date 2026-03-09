@@ -1,7 +1,9 @@
-package timebound
+package aws
 
 import (
 	"testing"
+
+	"github.com/builder-magic/timebound-iam/timebound/core"
 )
 
 func TestGetPolicyARN(t *testing.T) {
@@ -15,49 +17,49 @@ func TestGetPolicyARN(t *testing.T) {
 		{
 			name:    "s3 read only",
 			service: "s3",
-			level:   LevelReadOnly,
+			level:   core.LevelReadOnly,
 			wantARN: "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess",
 		},
 		{
 			name:    "s3 full access",
 			service: "s3",
-			level:   LevelFull,
+			level:   core.LevelFull,
 			wantARN: "arn:aws:iam::aws:policy/AmazonS3FullAccess",
 		},
 		{
 			name:    "lambda read only",
 			service: "lambda",
-			level:   LevelReadOnly,
+			level:   core.LevelReadOnly,
 			wantARN: "arn:aws:iam::aws:policy/AWSLambda_ReadOnlyAccess",
 		},
 		{
 			name:    "dynamodb full access",
 			service: "dynamodb",
-			level:   LevelFull,
+			level:   core.LevelFull,
 			wantARN: "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess",
 		},
 		{
 			name:    "uppercase service name",
 			service: "S3",
-			level:   LevelReadOnly,
+			level:   core.LevelReadOnly,
 			wantARN: "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess",
 		},
 		{
 			name:    "mixed case service name",
 			service: "DynamoDB",
-			level:   LevelFull,
+			level:   core.LevelFull,
 			wantARN: "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess",
 		},
 		{
 			name:    "leading and trailing spaces",
 			service: "  lambda  ",
-			level:   LevelReadOnly,
+			level:   core.LevelReadOnly,
 			wantARN: "arn:aws:iam::aws:policy/AWSLambda_ReadOnlyAccess",
 		},
 		{
 			name:      "unknown service",
 			service:   "nonexistent",
-			level:     LevelReadOnly,
+			level:     core.LevelReadOnly,
 			wantError: true,
 		},
 		{
@@ -98,25 +100,25 @@ func TestGetPolicyARNs(t *testing.T) {
 		{
 			name:      "multiple valid services",
 			services:  []string{"s3", "dynamodb", "lambda"},
-			level:     LevelReadOnly,
+			level:     core.LevelReadOnly,
 			wantCount: 3,
 		},
 		{
 			name:      "single service",
 			services:  []string{"ec2"},
-			level:     LevelFull,
+			level:     core.LevelFull,
 			wantCount: 1,
 		},
 		{
 			name:      "one unknown service fails all",
 			services:  []string{"s3", "nonexistent"},
-			level:     LevelReadOnly,
+			level:     core.LevelReadOnly,
 			wantError: true,
 		},
 		{
 			name:      "mixed case deduplicated",
 			services:  []string{"s3", "S3", " s3 "},
-			level:     LevelReadOnly,
+			level:     core.LevelReadOnly,
 			wantCount: 1,
 		},
 	}

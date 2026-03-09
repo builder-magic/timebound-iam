@@ -1,26 +1,6 @@
-package timebound
+package core
 
-import (
-	"sync"
-	"time"
-)
-
-// Session represents an active set of temporary AWS credentials.
-type Session struct {
-	ID              string    `json:"id"`
-	Services        []string  `json:"services"`
-	Level           string    `json:"level"`
-	Profile         string    `json:"profile,omitempty"`
-	AccessKeyID     string    `json:"access_key_id"`
-	SecretAccessKey  string   `json:"secret_access_key"`
-	SessionToken    string    `json:"session_token"`
-	ExpiresAt       time.Time `json:"expires_at"`
-}
-
-// IsExpired reports whether the session has expired.
-func (s *Session) IsExpired() bool {
-	return time.Now().After(s.ExpiresAt)
-}
+import "sync"
 
 // SessionStore provides thread-safe in-memory storage for active sessions.
 type SessionStore struct {

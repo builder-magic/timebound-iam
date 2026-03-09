@@ -1,4 +1,4 @@
-package timebound
+package aws
 
 import (
 	_ "embed"
@@ -6,11 +6,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-)
 
-const (
-	LevelReadOnly = "read_only"
-	LevelFull     = "full"
+	"github.com/builder-magic/timebound-iam/timebound/core"
 )
 
 // ServicePolicy holds the managed policy ARNs and IAM action prefix for a single AWS service.
@@ -18,12 +15,6 @@ type ServicePolicy struct {
 	IAMPrefix string `json:"iam_prefix"`
 	ReadOnly  string `json:"read_only,omitempty"`
 	Full      string `json:"full,omitempty"`
-}
-
-// ServiceInfo describes an available service and its supported access levels.
-type ServiceInfo struct {
-	Name   string   `json:"name"`
-	Levels []string `json:"levels"`
 }
 
 //go:embed policies.json
@@ -48,18 +39,18 @@ func GetPolicyARN(service, level string) (string, error) {
 	}
 
 	switch level {
-	case LevelReadOnly:
+	case core.LevelReadOnly:
 		if svc.ReadOnly == "" {
 			return "", fmt.Errorf("service %s does not support %s access", service, level)
 		}
 		return svc.ReadOnly, nil
-	case LevelFull:
+	case core.LevelFull:
 		if svc.Full == "" {
 			return "", fmt.Errorf("service %s does not support %s access", service, level)
 		}
 		return svc.Full, nil
 	default:
-		return "", fmt.Errorf("invalid access level: %s (must be %s or %s)", level, LevelReadOnly, LevelFull)
+		return "", fmt.Errorf("invalid access level: %s (must be %s or %s)", level, core.LevelReadOnly, core.LevelFull)
 	}
 }
 
@@ -84,16 +75,16 @@ func GetPolicyARNs(services []string, level string) ([]string, error) {
 	return arns, nil
 }
 
-// ListServices returns all available services sorted by name.
-func ListServices() []ServiceInfo {
-	services := make([]ServiceInfo, 0, len(policyRegistry))
+// ListServices returns all available AWS services sorted by name.
+func ListServices() []core.ServiceInfo {
+	services := make([]core.ServiceInfo, 0, len(policyRegistry))
 	for name, policy := range policyRegistry {
-		info := ServiceInfo{Name: name}
+		info := core.ServiceInfo{Name: name}
 		if policy.ReadOnly != "" {
-			info.Levels = append(info.Levels, LevelReadOnly)
+			info.Levels = append(info.Levels, core.LevelReadOnly)
 		}
 		if policy.Full != "" {
-			info.Levels = append(info.Levels, LevelFull)
+			info.Levels = append(info.Levels, core.LevelFull)
 		}
 		services = append(services, info)
 	}

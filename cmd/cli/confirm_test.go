@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	timebound "github.com/builder-magic/timebound-iam/timebound/aws"
+	"github.com/builder-magic/timebound-iam/timebound/core"
 )
 
 func testParams() SummaryParams {
@@ -15,8 +15,8 @@ func testParams() SummaryParams {
 		Account: "123456789012",
 		Role:    "arn:aws:iam::123456789012:role/timebound-iam-broker",
 		TTL:     15 * time.Minute,
-		Scopes: []timebound.ServiceScope{
-			{Service: "s3", Level: timebound.LevelReadOnly},
+		Scopes: []core.ServiceScope{
+			{Service: "s3", Level: core.LevelReadOnly},
 		},
 	}
 }

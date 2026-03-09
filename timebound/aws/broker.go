@@ -1,37 +1,32 @@
-package timebound
+package aws
 
 import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	ststypes "github.com/aws/aws-sdk-go-v2/service/sts/types"
+	"github.com/builder-magic/timebound-iam/timebound/core"
 	nanoid "github.com/matoous/go-nanoid/v2"
 )
 
 const (
 	brokerRoleName = "timebound-iam-broker"
-	// MinTTL is the minimum allowed credential duration.
-	MinTTL = 15 * time.Minute
-	// MaxTTL is the maximum allowed credential duration.
-	MaxTTL = 12 * time.Hour
 	// STS AssumeRole allows at most 12 managed policy ARNs per call.
 	maxPolicyARNs = 12
+
+	credKeyAccessKeyID     = "AWS_ACCESS_KEY_ID"
+	credKeySecretAccessKey = "AWS_SECRET_ACCESS_KEY"
+	credKeySessionToken    = "AWS_SESSION_TOKEN"
 )
 
 // STSClient defines the STS operations needed by the Broker.
 type STSClient interface {
 	GetCallerIdentity(ctx context.Context, params *sts.GetCallerIdentityInput, optFns ...func(*sts.Options)) (*sts.GetCallerIdentityOutput, error)
 	AssumeRole(ctx context.Context, params *sts.AssumeRoleInput, optFns ...func(*sts.Options)) (*sts.AssumeRoleOutput, error)
-}
-
-// CredentialGranter is the interface used by handlers to grant access.
-type CredentialGranter interface {
-	GrantAccess(ctx context.Context, input GrantAccessInput) (*Session, error)
 }
 
 // Broker handles STS AssumeRole calls against the timebound-iam-broker role.
@@ -80,36 +75,17 @@ func NewBrokerWithClient(ctx context.Context, client STSClient) (*Broker, error)
 	}, nil
 }
 
-// ServiceScope pairs a service name with an access level, allowing
-// per-service granularity (e.g. s3:read_only + dynamodb:full).
-type ServiceScope struct {
-	Service string
-	Level   string
-}
-
-// GrantAccessInput holds the parameters for granting temporary access.
-type GrantAccessInput struct {
-	Services []string
-	Level    string
-	TTL      time.Duration
-	// Profile selects which AWS profile (and therefore which account) to
-	// use. BrokerPool uses this to route to the correct Broker. Broker
-	// itself does not use it for routing; it only stores it in the
-	// Session for informational purposes.
-	Profile string
-	// ServiceScopes allows per-service access levels. When non-empty, it
-	// takes precedence over the Services+Level fields.
-	ServiceScopes []ServiceScope
-}
+// Name returns the provider name.
+func (b *Broker) Name() string { return core.ProviderAWS }
 
 // GrantAccess assumes the broker role with session policy ARNs scoped to the
 // requested services and returns a Session with temporary credentials.
-func (b *Broker) GrantAccess(ctx context.Context, input GrantAccessInput) (*Session, error) {
-	if input.TTL < MinTTL {
-		return nil, fmt.Errorf("TTL must be at least %s", MinTTL)
+func (b *Broker) GrantAccess(ctx context.Context, input core.GrantAccessInput) (*core.Session, error) {
+	if input.TTL < core.MinTTL {
+		return nil, fmt.Errorf("TTL must be at least %s", core.MinTTL)
 	}
-	if input.TTL > MaxTTL {
-		return nil, fmt.Errorf("TTL must not exceed %s", MaxTTL)
+	if input.TTL > core.MaxTTL {
+		return nil, fmt.Errorf("TTL must not exceed %s", core.MaxTTL)
 	}
 
 	var arns []string
@@ -163,21 +139,29 @@ func (b *Broker) GrantAccess(ctx context.Context, input GrantAccessInput) (*Sess
 	}
 
 	creds := result.Credentials
-	return &Session{
-		ID:              id,
-		Services:        input.Services,
-		Level:           input.Level,
-		Profile:         input.Profile,
-		AccessKeyID:     aws.ToString(creds.AccessKeyId),
-		SecretAccessKey:  aws.ToString(creds.SecretAccessKey),
-		SessionToken:    aws.ToString(creds.SessionToken),
-		ExpiresAt:       aws.ToTime(creds.Expiration),
+	return &core.Session{
+		ID:       id,
+		Provider: core.ProviderAWS,
+		Services: input.Services,
+		Level:    input.Level,
+		Profile:  input.Profile,
+		Credentials: map[string]string{
+			credKeyAccessKeyID:     aws.ToString(creds.AccessKeyId),
+			credKeySecretAccessKey: aws.ToString(creds.SecretAccessKey),
+			credKeySessionToken:    aws.ToString(creds.SessionToken),
+		},
+		ExpiresAt: aws.ToTime(creds.Expiration),
 	}, nil
+}
+
+// ListServices returns all available AWS services sorted by name.
+func (b *Broker) ListServices() []core.ServiceInfo {
+	return ListServices()
 }
 
 // resolveScopedARNs resolves policy ARNs from per-service scopes,
 // validating services and deduplicating ARNs.
-func resolveScopedARNs(scopes []ServiceScope) ([]string, error) {
+func resolveScopedARNs(scopes []core.ServiceScope) ([]string, error) {
 	services := make([]string, len(scopes))
 	for i, s := range scopes {
 		services[i] = s.Service
@@ -276,11 +260,19 @@ func (bp *BrokerPool) getOrCreate(ctx context.Context, profile string) (*Broker,
 	return broker, nil
 }
 
+// Name returns the provider name.
+func (bp *BrokerPool) Name() string { return core.ProviderAWS }
+
 // GrantAccess looks up or creates a broker for the requested profile, then delegates.
-func (bp *BrokerPool) GrantAccess(ctx context.Context, input GrantAccessInput) (*Session, error) {
+func (bp *BrokerPool) GrantAccess(ctx context.Context, input core.GrantAccessInput) (*core.Session, error) {
 	broker, err := bp.getOrCreate(ctx, input.Profile)
 	if err != nil {
 		return nil, fmt.Errorf("initializing AWS broker for profile %q: %w", input.Profile, err)
 	}
 	return broker.GrantAccess(ctx, input)
+}
+
+// ListServices returns all available AWS services.
+func (bp *BrokerPool) ListServices() []core.ServiceInfo {
+	return ListServices()
 }

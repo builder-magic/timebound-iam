@@ -1,0 +1,77 @@
+{
+  "storage": {
+    "display_name": "Storage (Blob)",
+    "read_only": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+    "full": "ba92f5b4-2d11-453d-a403-e96b0029c9fe"
+  },
+  "keyvault": {
+    "display_name": "Key Vault",
+    "read_only": "21090545-7ca7-4776-b22c-e363652d74d2",
+    "full": "00482a5a-887f-4fb3-b363-3b7fe8e74483"
+  },
+  "compute": {
+    "display_name": "Virtual Machines",
+    "read_only": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
+    "full": "9980e02c-c2be-4d73-94e8-173b1dc7cf3c"
+  },
+  "cosmosdb": {
+    "display_name": "Cosmos DB",
+    "read_only": "fbdf93bf-df7d-467e-a4d2-9458aa1360c8",
+    "full": "5bd9cd88-fe45-4216-938b-f97437e15450"
+  },
+  "sql": {
+    "display_name": "SQL Database",
+    "read_only": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
+    "full": "9b7fa17d-e63e-47b0-bb0a-15c516ac86ec"
+  },
+  "appservice": {
+    "display_name": "App Service",
+    "read_only": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
+    "full": "de139f84-1756-47ae-9be6-808fbbe84772"
+  },
+  "functions": {
+    "display_name": "Functions",
+    "read_only": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
+    "full": "de139f84-1756-47ae-9be6-808fbbe84772"
+  },
+  "containerregistry": {
+    "display_name": "Container Registry",
+    "read_only": "7f951dda-4ed3-4680-a7ca-43fe172d538d",
+    "full": "8311e382-0749-4cb8-b61a-304f252e45ec"
+  },
+  "aks": {
+    "display_name": "Kubernetes Service (AKS)",
+    "read_only": "4abbcc35-e782-43d8-92c5-2d3f1bd2253f",
+    "full": "ed7f3fbd-7b88-4dd4-9017-9adb7ce333f8"
+  },
+  "servicebus": {
+    "display_name": "Service Bus",
+    "read_only": "4f6d3b9b-027b-4f4c-9142-0e5a2a2247e0",
+    "full": "090c5cfd-751d-490a-894a-3ce6f1109419"
+  },
+  "eventhubs": {
+    "display_name": "Event Hubs",
+    "read_only": "a638d3c7-ab3a-418d-83e6-5f17a39d4fde",
+    "full": "f526a384-b230-433a-b45c-95f59c4a2dec"
+  },
+  "monitor": {
+    "display_name": "Monitor",
+    "read_only": "43d0d8ad-25c7-4714-9337-8ba259a9fe05",
+    "full": "749f88d5-cbae-40b8-bcfc-e573ddc772fa"
+  },
+  "network": {
+    "display_name": "Virtual Network",
+    "read_only": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
+    "full": "4d97b98b-1d4f-4787-a291-c67834d212e7"
+  },
+  "dns": {
+    "display_name": "DNS",
+    "read_only": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
+    "full": "befefa01-2a29-4197-83a8-272ff33ce314"
+  },
+  "redis": {
+    "display_name": "Cache for Redis",
+    "read_only": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
+    "full": "e0f68234-74aa-48ed-b826-c38b57376e17"
+  }
+}

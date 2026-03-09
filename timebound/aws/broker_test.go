@@ -1,4 +1,4 @@
-package timebound
+package aws
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	ststypes "github.com/aws/aws-sdk-go-v2/service/sts/types"
+	"github.com/builder-magic/timebound-iam/timebound/core"
 )
 
 // mockSTSClient implements STSClient for testing.
@@ -87,55 +88,55 @@ func TestNewBrokerWithClientError(t *testing.T) {
 func TestGrantAccess(t *testing.T) {
 	tests := []struct {
 		name      string
-		input     GrantAccessInput
+		input     core.GrantAccessInput
 		wantError bool
 	}{
 		{
 			name: "valid single service read only",
-			input: GrantAccessInput{
+			input: core.GrantAccessInput{
 				Services: []string{"s3"},
-				Level:    LevelReadOnly,
+				Level:    core.LevelReadOnly,
 				TTL:      30 * time.Minute,
 			},
 		},
 		{
 			name: "valid multiple services full access",
-			input: GrantAccessInput{
+			input: core.GrantAccessInput{
 				Services: []string{"s3", "dynamodb"},
-				Level:    LevelFull,
+				Level:    core.LevelFull,
 				TTL:      1 * time.Hour,
 			},
 		},
 		{
 			name: "ttl too short",
-			input: GrantAccessInput{
+			input: core.GrantAccessInput{
 				Services: []string{"s3"},
-				Level:    LevelReadOnly,
+				Level:    core.LevelReadOnly,
 				TTL:      5 * time.Minute,
 			},
 			wantError: true,
 		},
 		{
 			name: "ttl too long",
-			input: GrantAccessInput{
+			input: core.GrantAccessInput{
 				Services: []string{"s3"},
-				Level:    LevelReadOnly,
+				Level:    core.LevelReadOnly,
 				TTL:      13 * time.Hour,
 			},
 			wantError: true,
 		},
 		{
 			name: "unknown service",
-			input: GrantAccessInput{
+			input: core.GrantAccessInput{
 				Services: []string{"nonexistent"},
-				Level:    LevelReadOnly,
+				Level:    core.LevelReadOnly,
 				TTL:      30 * time.Minute,
 			},
 			wantError: true,
 		},
 		{
 			name: "invalid level",
-			input: GrantAccessInput{
+			input: core.GrantAccessInput{
 				Services: []string{"s3"},
 				Level:    "admin",
 				TTL:      30 * time.Minute,
@@ -162,17 +163,20 @@ func TestGrantAccess(t *testing.T) {
 			if session.ID == "" {
 				t.Error("session ID should not be empty")
 			}
-			if session.AccessKeyID == "" {
+			if session.Credentials[credKeyAccessKeyID] == "" {
 				t.Error("AccessKeyID should not be empty")
 			}
-			if session.SecretAccessKey == "" {
+			if session.Credentials[credKeySecretAccessKey] == "" {
 				t.Error("SecretAccessKey should not be empty")
 			}
-			if session.SessionToken == "" {
+			if session.Credentials[credKeySessionToken] == "" {
 				t.Error("SessionToken should not be empty")
 			}
 			if session.ExpiresAt.IsZero() {
 				t.Error("ExpiresAt should not be zero")
+			}
+			if session.Provider != core.ProviderAWS {
+				t.Errorf("Provider = %q, want %q", session.Provider, core.ProviderAWS)
 			}
 		})
 	}
@@ -185,9 +189,9 @@ func TestGrantAccessSTSError(t *testing.T) {
 	}
 
 	broker := newTestBroker(t, mock)
-	_, err := broker.GrantAccess(context.Background(), GrantAccessInput{
+	_, err := broker.GrantAccess(context.Background(), core.GrantAccessInput{
 		Services: []string{"s3"},
-		Level:    LevelReadOnly,
+		Level:    core.LevelReadOnly,
 		TTL:      30 * time.Minute,
 	})
 	if err == nil {
@@ -206,9 +210,9 @@ func TestBrokerPoolCaching(t *testing.T) {
 	pool := newBrokerPoolWithFactory(factory)
 	ctx := context.Background()
 
-	input := GrantAccessInput{
+	input := core.GrantAccessInput{
 		Services: []string{"s3"},
-		Level:    LevelReadOnly,
+		Level:    core.LevelReadOnly,
 		TTL:      30 * time.Minute,
 		Profile:  "dev",
 	}
@@ -242,9 +246,9 @@ func TestBrokerPoolMultiProfile(t *testing.T) {
 	ctx := context.Background()
 
 	for _, profile := range []string{"dev", "prod", "dev"} {
-		input := GrantAccessInput{
+		input := core.GrantAccessInput{
 			Services: []string{"s3"},
-			Level:    LevelReadOnly,
+			Level:    core.LevelReadOnly,
 			TTL:      30 * time.Minute,
 			Profile:  profile,
 		}
@@ -270,9 +274,9 @@ func TestBrokerPoolInitError(t *testing.T) {
 
 	pool := newBrokerPoolWithFactory(factory)
 	ctx := context.Background()
-	input := GrantAccessInput{
+	input := core.GrantAccessInput{
 		Services: []string{"s3"},
-		Level:    LevelReadOnly,
+		Level:    core.LevelReadOnly,
 		TTL:      30 * time.Minute,
 		Profile:  "broken",
 	}
@@ -305,9 +309,9 @@ func TestBrokerPoolDefaultProfile(t *testing.T) {
 
 	pool := newBrokerPoolWithFactory(factory)
 	ctx := context.Background()
-	input := GrantAccessInput{
+	input := core.GrantAccessInput{
 		Services: []string{"s3"},
-		Level:    LevelReadOnly,
+		Level:    core.LevelReadOnly,
 		TTL:      30 * time.Minute,
 	}
 
@@ -365,8 +369,6 @@ func TestBrokerPoolConcurrentSameProfile(t *testing.T) {
 
 func TestBrokerPoolDifferentProfilesNotBlocked(t *testing.T) {
 	// Factory that blocks until released via a per-profile gate channel.
-	// This lets us prove that profile B completes while profile A is
-	// still blocked in its factory call.
 	gates := map[string]chan struct{}{
 		"a": make(chan struct{}),
 		"b": make(chan struct{}),
@@ -394,11 +396,9 @@ func TestBrokerPoolDifferentProfilesNotBlocked(t *testing.T) {
 		close(aDone)
 	}()
 	<-aReady
-	// Give the goroutine time to enter the factory and block on the gate.
 	time.Sleep(10 * time.Millisecond)
 
-	// Release profile B's gate and request it. With per-profile locking
-	// this should complete immediately even though A is still blocked.
+	// Release profile B's gate and request it.
 	close(gates["b"])
 	bDone := make(chan struct{})
 	go func() {
@@ -408,13 +408,11 @@ func TestBrokerPoolDifferentProfilesNotBlocked(t *testing.T) {
 
 	select {
 	case <-bDone:
-		// Profile B completed while A is still blocked. This is the
-		// correct behavior with per-profile locking.
 	case <-time.After(2 * time.Second):
 		t.Fatal("profile B blocked by profile A's pending creation")
 	}
 
-	// Verify A is still blocked (its gate hasn't been released).
+	// Verify A is still blocked.
 	select {
 	case <-aDone:
 		t.Fatal("profile A completed before its gate was released")
@@ -450,7 +448,7 @@ func TestBrokerPoolConcurrentFactoryErrorRetryable(t *testing.T) {
 		t.Fatal("expected error on first call")
 	}
 
-	// Second call retries and succeeds. A cached error would break this.
+	// Second call retries and succeeds.
 	broker, err := pool.getOrCreate(ctx, "flaky")
 	if err != nil {
 		t.Fatalf("expected success on retry, got: %v", err)
@@ -459,7 +457,7 @@ func TestBrokerPoolConcurrentFactoryErrorRetryable(t *testing.T) {
 		t.Fatal("expected non-nil broker on retry")
 	}
 
-	// Third call returns the cached broker, no additional factory call.
+	// Third call returns the cached broker.
 	broker2, err := pool.getOrCreate(ctx, "flaky")
 	if err != nil {
 		t.Fatalf("third call: %v", err)
@@ -468,53 +466,53 @@ func TestBrokerPoolConcurrentFactoryErrorRetryable(t *testing.T) {
 		t.Fatal("third call returned a different broker instance")
 	}
 	if n := factoryCalls.Load(); n != 2 {
-		t.Errorf("factory called %d times, want 2 (one failure + one success)", n)
+		t.Errorf("factory called %d times, want 2", n)
 	}
 }
 
 func TestGrantAccessWithServiceScopes(t *testing.T) {
 	tests := []struct {
-		name          string
-		scopes        []ServiceScope
-		wantARNCount  int
-		wantError     bool
-		wantErrorMsg  string
+		name         string
+		scopes       []core.ServiceScope
+		wantARNCount int
+		wantError    bool
+		wantErrorMsg string
 	}{
 		{
 			name: "mixed levels",
-			scopes: []ServiceScope{
-				{Service: "s3", Level: LevelReadOnly},
-				{Service: "dynamodb", Level: LevelFull},
+			scopes: []core.ServiceScope{
+				{Service: "s3", Level: core.LevelReadOnly},
+				{Service: "dynamodb", Level: core.LevelFull},
 			},
 			wantARNCount: 2,
 		},
 		{
 			name: "deduplication same service same level",
-			scopes: []ServiceScope{
-				{Service: "s3", Level: LevelReadOnly},
-				{Service: "s3", Level: LevelReadOnly},
+			scopes: []core.ServiceScope{
+				{Service: "s3", Level: core.LevelReadOnly},
+				{Service: "s3", Level: core.LevelReadOnly},
 			},
 			wantARNCount: 1,
 		},
 		{
 			name: "same service different levels produces two ARNs",
-			scopes: []ServiceScope{
-				{Service: "s3", Level: LevelReadOnly},
-				{Service: "s3", Level: LevelFull},
+			scopes: []core.ServiceScope{
+				{Service: "s3", Level: core.LevelReadOnly},
+				{Service: "s3", Level: core.LevelFull},
 			},
 			wantARNCount: 2,
 		},
 		{
 			name: "unknown service with scopes",
-			scopes: []ServiceScope{
-				{Service: "nonexistent", Level: LevelReadOnly},
+			scopes: []core.ServiceScope{
+				{Service: "nonexistent", Level: core.LevelReadOnly},
 			},
 			wantError:    true,
 			wantErrorMsg: "unknown service",
 		},
 		{
 			name: "invalid level with scopes",
-			scopes: []ServiceScope{
+			scopes: []core.ServiceScope{
 				{Service: "s3", Level: "admin"},
 			},
 			wantError:    true,
@@ -540,7 +538,7 @@ func TestGrantAccessWithServiceScopes(t *testing.T) {
 			}
 
 			broker := newTestBroker(t, mock)
-			_, err := broker.GrantAccess(context.Background(), GrantAccessInput{
+			_, err := broker.GrantAccess(context.Background(), core.GrantAccessInput{
 				ServiceScopes: tt.scopes,
 				TTL:           30 * time.Minute,
 			})
@@ -584,9 +582,9 @@ func TestGrantAccessPolicyARNsPassedToSTS(t *testing.T) {
 	}
 
 	broker := newTestBroker(t, mock)
-	_, err := broker.GrantAccess(context.Background(), GrantAccessInput{
+	_, err := broker.GrantAccess(context.Background(), core.GrantAccessInput{
 		Services: []string{"s3", "dynamodb"},
-		Level:    LevelReadOnly,
+		Level:    core.LevelReadOnly,
 		TTL:      30 * time.Minute,
 	})
 	if err != nil {

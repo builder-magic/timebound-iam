@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	timebound "github.com/builder-magic/timebound-iam/timebound/aws"
+	"github.com/builder-magic/timebound-iam/timebound/core"
 )
 
 func TestRenderSummary(t *testing.T) {
@@ -21,8 +21,8 @@ func TestRenderSummary(t *testing.T) {
 				Account: "123456789012",
 				Role:    "arn:aws:iam::123456789012:role/timebound-iam-broker",
 				TTL:     15 * time.Minute,
-				Scopes: []timebound.ServiceScope{
-					{Service: "s3", Level: timebound.LevelReadOnly},
+				Scopes: []core.ServiceScope{
+					{Service: "s3", Level: core.LevelReadOnly},
 				},
 			},
 			contains: []string{
@@ -39,9 +39,9 @@ func TestRenderSummary(t *testing.T) {
 				Role:    "arn:aws:iam::123456789012:role/timebound-iam-broker",
 				Profile: "dev",
 				TTL:     1 * time.Hour,
-				Scopes: []timebound.ServiceScope{
-					{Service: "s3", Level: timebound.LevelReadOnly},
-					{Service: "dynamodb", Level: timebound.LevelFull},
+				Scopes: []core.ServiceScope{
+					{Service: "s3", Level: core.LevelReadOnly},
+					{Service: "dynamodb", Level: core.LevelFull},
 				},
 				Command: []string{"aws", "s3", "ls"},
 			},
@@ -59,8 +59,8 @@ func TestRenderSummary(t *testing.T) {
 				Account: "123456789012",
 				Role:    "arn:aws:iam::123456789012:role/timebound-iam-broker",
 				TTL:     30 * time.Minute,
-				Scopes: []timebound.ServiceScope{
-					{Service: "s3", Level: timebound.LevelReadOnly},
+				Scopes: []core.ServiceScope{
+					{Service: "s3", Level: core.LevelReadOnly},
 				},
 			},
 			contains: []string{"┌", "┐", "└", "┘", "│"},

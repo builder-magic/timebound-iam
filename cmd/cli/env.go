@@ -6,9 +6,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"time"
 
-	timebound "github.com/builder-magic/timebound-iam/timebound/aws"
+	awsprovider "github.com/builder-magic/timebound-iam/timebound/aws"
+	"github.com/builder-magic/timebound-iam/timebound/core"
 )
 
 const (
@@ -22,7 +24,7 @@ const (
 func RunEnv(args []string) error {
 	fs := flag.NewFlagSet("env", flag.ContinueOnError)
 	fs.Usage = func() {
-		fmt.Fprintln(fs.Output(), "Print export/unset statements for AWS credentials")
+		fmt.Fprintln(fs.Output(), "Print export/unset statements for cloud credentials")
 		fmt.Fprintln(fs.Output(), "")
 		fmt.Fprintln(fs.Output(), "USAGE")
 		fmt.Fprintln(fs.Output(), "  timebound-iam env [flags]")
@@ -78,7 +80,7 @@ func RunEnv(args []string) error {
 	}
 
 	ctx := context.Background()
-	broker, err := timebound.NewBrokerWithProfile(ctx, *profile)
+	broker, err := awsprovider.NewBrokerWithProfile(ctx, *profile)
 	if err != nil {
 		return fmt.Errorf("initializing broker: %w", err)
 	}
@@ -99,7 +101,7 @@ func RunEnv(args []string) error {
 		return err
 	}
 
-	session, err := broker.GrantAccess(ctx, timebound.GrantAccessInput{
+	session, err := broker.GrantAccess(ctx, core.GrantAccessInput{
 		ServiceScopes: scopes.scopes,
 		TTL:           ttl,
 		Profile:       *profile,
@@ -108,8 +110,14 @@ func RunEnv(args []string) error {
 		return fmt.Errorf("granting access: %w", err)
 	}
 
-	fmt.Fprintf(os.Stdout, "export %s=%s\n", envKeyAccessKeyID, session.AccessKeyID)
-	fmt.Fprintf(os.Stdout, "export %s=%s\n", envKeySecretAccessKey, session.SecretAccessKey)
-	fmt.Fprintf(os.Stdout, "export %s=%s\n", envKeySessionToken, session.SessionToken)
+	// Sort credential keys for deterministic output.
+	keys := make([]string, 0, len(session.Credentials))
+	for k := range session.Credentials {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		fmt.Fprintf(os.Stdout, "export %s=%s\n", k, session.Credentials[k])
+	}
 	return nil
 }

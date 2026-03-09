@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"strings"
 
-	timebound "github.com/builder-magic/timebound-iam/timebound/aws"
+	"github.com/builder-magic/timebound-iam/timebound/core"
 )
 
 // scopeFlag implements flag.Value for parsing repeated/comma-separated
 // service:level pairs (e.g. -s s3:ro,dynamodb:full -s lambda:ro).
 type scopeFlag struct {
-	scopes []timebound.ServiceScope
+	scopes []core.ServiceScope
 }
 
 func (f *scopeFlag) String() string {
@@ -22,7 +22,7 @@ func (f *scopeFlag) String() string {
 }
 
 func (f *scopeFlag) Set(val string) error {
-	var parsed []timebound.ServiceScope
+	var parsed []core.ServiceScope
 	for _, item := range strings.Split(val, ",") {
 		item = strings.TrimSpace(item)
 		if item == "" {
@@ -39,27 +39,27 @@ func (f *scopeFlag) Set(val string) error {
 }
 
 // parseScope parses a single "service:level" string into a ServiceScope.
-func parseScope(s string) (timebound.ServiceScope, error) {
+func parseScope(s string) (core.ServiceScope, error) {
 	idx := strings.IndexByte(s, ':')
 	if idx < 0 {
-		return timebound.ServiceScope{}, fmt.Errorf("invalid scope %q: expected service:level (e.g. s3:ro)", s)
+		return core.ServiceScope{}, fmt.Errorf("invalid scope %q: expected service:level (e.g. s3:ro)", s)
 	}
 	service := strings.TrimSpace(s[:idx])
 	level := strings.TrimSpace(s[idx+1:])
 
 	if service == "" {
-		return timebound.ServiceScope{}, fmt.Errorf("invalid scope %q: service name is empty", s)
+		return core.ServiceScope{}, fmt.Errorf("invalid scope %q: service name is empty", s)
 	}
 	if level == "" {
-		return timebound.ServiceScope{}, fmt.Errorf("invalid scope %q: level is empty", s)
+		return core.ServiceScope{}, fmt.Errorf("invalid scope %q: level is empty", s)
 	}
 
 	expanded, err := expandLevel(level)
 	if err != nil {
-		return timebound.ServiceScope{}, fmt.Errorf("invalid scope %q: %w", s, err)
+		return core.ServiceScope{}, fmt.Errorf("invalid scope %q: %w", s, err)
 	}
 
-	return timebound.ServiceScope{
+	return core.ServiceScope{
 		Service: strings.ToLower(service),
 		Level:   expanded,
 	}, nil
@@ -69,9 +69,9 @@ func parseScope(s string) (timebound.ServiceScope, error) {
 func expandLevel(level string) (string, error) {
 	switch strings.ToLower(level) {
 	case "ro", "read_only", "readonly":
-		return timebound.LevelReadOnly, nil
+		return core.LevelReadOnly, nil
 	case "full":
-		return timebound.LevelFull, nil
+		return core.LevelFull, nil
 	default:
 		return "", fmt.Errorf("unknown level %q (use ro, read_only, or full)", level)
 	}

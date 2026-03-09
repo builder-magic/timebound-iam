@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	timebound "github.com/builder-magic/timebound-iam/timebound/aws"
+	"github.com/builder-magic/timebound-iam/timebound/core"
 )
 
 // SummaryParams holds the data displayed in the pre-confirmation summary table.
@@ -15,7 +15,7 @@ type SummaryParams struct {
 	Role    string
 	Profile string
 	TTL     time.Duration
-	Scopes  []timebound.ServiceScope
+	Scopes  []core.ServiceScope
 	Command []string // non-empty only for exec
 }
 

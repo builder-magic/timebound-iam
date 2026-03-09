@@ -1,4 +1,4 @@
-package timebound
+package aws
 
 import (
 	"bufio"
@@ -8,6 +8,8 @@ import (
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/builder-magic/timebound-iam/timebound/core"
 )
 
 // RunSetup runs the interactive setup wizard that generates IAM policy JSON.
@@ -90,7 +92,7 @@ func RunSetup(profile string) error {
 	return nil
 }
 
-func selectServices(services []ServiceInfo, input string) []string {
+func selectServices(services []core.ServiceInfo, input string) []string {
 	if strings.ToLower(input) == "all" {
 		names := make([]string, len(services))
 		for i, svc := range services {
