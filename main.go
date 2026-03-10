@@ -22,7 +22,7 @@ import (
 
 const (
 	serverName    = "timebound-iam"
-	serverVersion = "0.8.1"
+	serverVersion = "0.8.2"
 
 	defaultDirName   = ".tiam"
 	credentialSubdir = "creds"
