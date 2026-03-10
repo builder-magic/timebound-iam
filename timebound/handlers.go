@@ -40,14 +40,14 @@ type listActiveSessionsArgs struct{}
 func RegisterTools(server *mcp.Server, providers map[string]core.Provider, store *core.SessionStore, credentialDir string) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        toolGrantAccess,
-		Description: "Issue time-boxed, service-scoped temporary cloud credentials. Supports AWS and Azure. Optionally specify a profile to target a specific account. The user will be prompted to approve before credentials are issued.",
+		Description: buildGrantAccessDescription(providers),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args grantAccessArgs) (*mcp.CallToolResult, any, error) {
 		return handleGrantAccess(ctx, providers, store, credentialDir, args)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        toolListServices,
-		Description: "List all cloud services available for temporary credential grants, along with their supported access levels. Supports AWS and Azure.",
+		Description: "List all cloud services available for temporary credential grants. Use this only if you need the full list — grant_access already includes available services in its description.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args listServicesArgs) (*mcp.CallToolResult, any, error) {
 		return handleListServices(providers, args)
 	})
@@ -58,6 +58,29 @@ func RegisterTools(server *mcp.Server, providers map[string]core.Provider, store
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args listActiveSessionsArgs) (*mcp.CallToolResult, any, error) {
 		return handleListActiveSessions(store)
 	})
+}
+
+// buildGrantAccessDescription generates a tool description that includes
+// available services per provider, so the agent doesn't need to call
+// list_services first.
+func buildGrantAccessDescription(providers map[string]core.Provider) string {
+	var b strings.Builder
+	b.WriteString("Issue time-boxed, service-scoped temporary cloud credentials. ")
+	b.WriteString("The credential_file in the response contains env vars. ")
+	b.WriteString("Use them with: env $(cat <credential_file>) <command>\n\n")
+	b.WriteString("Available services:\n")
+
+	for name, provider := range providers {
+		services := provider.ListServices()
+		b.WriteString(fmt.Sprintf("\n%s:\n", name))
+		for _, svc := range services {
+			b.WriteString(fmt.Sprintf("  - %s [%s]\n", svc.Name, strings.Join(svc.Levels, ", ")))
+		}
+	}
+
+	b.WriteString("\nLevels: read_only, full")
+	b.WriteString("\nTTL: 15m to 12h (e.g. 15m, 1h, 4h)")
+	return b.String()
 }
 
 func handleGrantAccess(ctx context.Context, providers map[string]core.Provider, store *core.SessionStore, credentialDir string, args grantAccessArgs) (*mcp.CallToolResult, any, error) {
@@ -106,6 +129,11 @@ func handleGrantAccess(ctx context.Context, providers map[string]core.Provider, 
 	store.Add(session)
 	cleanupExpiredCredentialFiles(credentialDir, store)
 
+	usage := fmt.Sprintf("env $(cat %s) <command>", envFile)
+	if session.Provider == core.ProviderAzure {
+		usage = fmt.Sprintf("source %s && az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID --output none && <command>", envFile)
+	}
+
 	response := map[string]any{
 		"session_id":      session.ID,
 		"provider":        session.Provider,
@@ -113,7 +141,7 @@ func handleGrantAccess(ctx context.Context, providers map[string]core.Provider, 
 		"level":           session.Level,
 		"expires_at":      session.ExpiresAt.Format(time.RFC3339),
 		"credential_file": envFile,
-		"usage":           fmt.Sprintf("Prefix CLI commands with: env $(cat %s)", envFile),
+		"usage":           usage,
 	}
 
 	if session.Profile != "" {
@@ -139,7 +167,16 @@ func handleListServices(providers map[string]core.Provider, args listServicesArg
 	}
 
 	services := provider.ListServices()
-	return jsonResult(services)
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("%s services:\n", providerName))
+	for _, svc := range services {
+		b.WriteString(fmt.Sprintf("  %-25s [%s]\n", svc.Name, strings.Join(svc.Levels, ", ")))
+	}
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: b.String()},
+		},
+	}, nil, nil
 }
 
 func handleListActiveSessions(store *core.SessionStore) (*mcp.CallToolResult, any, error) {
