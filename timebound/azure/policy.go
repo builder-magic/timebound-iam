@@ -11,10 +11,11 @@ import (
 )
 
 // RoleMapping holds the Azure built-in role definition IDs for a service.
+// Each level may require multiple roles (e.g. Reader + data-plane role).
 type RoleMapping struct {
-	DisplayName string `json:"display_name"`
-	ReadOnly    string `json:"read_only,omitempty"`
-	Full        string `json:"full,omitempty"`
+	DisplayName string   `json:"display_name"`
+	ReadOnly    []string `json:"read_only,omitempty"`
+	Full        []string `json:"full,omitempty"`
 }
 
 //go:embed policies.json
@@ -28,48 +29,49 @@ func init() {
 	}
 }
 
-// GetRoleDefinitionID returns the Azure built-in role definition ID for a
-// given service and access level.
-func GetRoleDefinitionID(service, level string) (string, error) {
-	service = strings.ToLower(strings.TrimSpace(service))
+// GetRoleDefinitionIDs returns the Azure built-in role definition IDs for a
+// given service and access level. Some services require multiple roles
+// (e.g. Reader for management plane + a data-plane role).
+func GetRoleDefinitionIDs(services []string, level string) ([]string, error) {
+	seen := make(map[string]bool)
+	var ids []string
+	for _, svc := range services {
+		svc = strings.ToLower(strings.TrimSpace(svc))
+		roleIDs, err := getRoleIDs(svc, level)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range roleIDs {
+			if !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
+	}
+	return ids, nil
+}
+
+// getRoleIDs returns the role definition IDs for a single service and level.
+func getRoleIDs(service, level string) ([]string, error) {
 	role, ok := roleRegistry[service]
 	if !ok {
-		return "", fmt.Errorf("unknown Azure service: %s", service)
+		return nil, fmt.Errorf("unknown Azure service: %s", service)
 	}
 
 	switch level {
 	case core.LevelReadOnly:
-		if role.ReadOnly == "" {
-			return "", fmt.Errorf("Azure service %s does not support %s access", service, level)
+		if len(role.ReadOnly) == 0 {
+			return nil, fmt.Errorf("Azure service %s does not support %s access", service, level)
 		}
 		return role.ReadOnly, nil
 	case core.LevelFull:
-		if role.Full == "" {
-			return "", fmt.Errorf("Azure service %s does not support %s access", service, level)
+		if len(role.Full) == 0 {
+			return nil, fmt.Errorf("Azure service %s does not support %s access", service, level)
 		}
 		return role.Full, nil
 	default:
-		return "", fmt.Errorf("invalid access level: %s (must be %s or %s)", level, core.LevelReadOnly, core.LevelFull)
+		return nil, fmt.Errorf("invalid access level: %s (must be %s or %s)", level, core.LevelReadOnly, core.LevelFull)
 	}
-}
-
-// GetRoleDefinitionIDs returns role definition IDs for multiple services.
-func GetRoleDefinitionIDs(services []string, level string) ([]string, error) {
-	seen := make(map[string]bool, len(services))
-	ids := make([]string, 0, len(services))
-	for _, svc := range services {
-		svc = strings.ToLower(strings.TrimSpace(svc))
-		if seen[svc] {
-			continue
-		}
-		seen[svc] = true
-		id, err := GetRoleDefinitionID(svc, level)
-		if err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	return ids, nil
 }
 
 // ListServices returns all available Azure services sorted by name.
@@ -77,10 +79,10 @@ func ListServices() []core.ServiceInfo {
 	services := make([]core.ServiceInfo, 0, len(roleRegistry))
 	for name, role := range roleRegistry {
 		info := core.ServiceInfo{Name: name}
-		if role.ReadOnly != "" {
+		if len(role.ReadOnly) > 0 {
 			info.Levels = append(info.Levels, core.LevelReadOnly)
 		}
-		if role.Full != "" {
+		if len(role.Full) > 0 {
 			info.Levels = append(info.Levels, core.LevelFull)
 		}
 		services = append(services, info)
@@ -120,18 +122,19 @@ func resolveScopedRoleIDs(scopes []core.ServiceScope) ([]string, error) {
 		return nil, err
 	}
 
-	seen := make(map[string]bool, len(scopes))
-	ids := make([]string, 0, len(scopes))
+	seen := make(map[string]bool)
+	var ids []string
 	for _, s := range scopes {
-		id, err := GetRoleDefinitionID(s.Service, s.Level)
+		roleIDs, err := getRoleIDs(s.Service, s.Level)
 		if err != nil {
 			return nil, err
 		}
-		if seen[id] {
-			continue
+		for _, id := range roleIDs {
+			if !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
 		}
-		seen[id] = true
-		ids = append(ids, id)
 	}
 	return ids, nil
 }

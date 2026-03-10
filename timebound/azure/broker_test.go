@@ -111,8 +111,9 @@ func TestGrantAccessMultipleServices(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if createCalls != 2 {
-		t.Errorf("expected 2 Create calls, got %d", createCalls)
+	// storage = 2 roles (Reader + Blob Data Contributor), keyvault = 1 role
+	if createCalls != 3 {
+		t.Errorf("expected 3 Create calls, got %d", createCalls)
 	}
 }
 
