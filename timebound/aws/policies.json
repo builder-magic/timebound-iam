@@ -167,7 +167,7 @@
   },
   "kms": {
     "iam_prefix": "kms",
-    "full": "arn:aws:iam::aws:policy/AWSKeyManagementServicePowerUser"
+    "full": "arn:aws:iam::388531135193:policy/tb-kms-full"
   },
   "acm": {
     "iam_prefix": "acm",
