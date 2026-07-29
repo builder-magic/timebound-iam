@@ -236,5 +236,10 @@
   "apprunner": {
     "iam_prefix": "apprunner",
     "full": "arn:aws:iam::aws:policy/AWSAppRunnerFullAccess"
+  },
+  "cost-explorer": {
+    "iam_prefix": "ce",
+    "read_only": "arn:aws:iam::528752326388:policy/tb-ce-read-only",
+    "full": "arn:aws:iam::528752326388:policy/tb-ce-full"
   }
 }
